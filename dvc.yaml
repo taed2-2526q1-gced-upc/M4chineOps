@@ -1,0 +1,7 @@
+stages:
+  download:
+    cmd: python -m src.data.download_raw_dataset
+    deps:
+    - data/download_forensics.py
+    outs:
+    - downloaded_data/raw_data
