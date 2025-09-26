@@ -22,7 +22,7 @@ In this project, we use it to train, validate, and evaluate models for deepfake 
 - **Original videos (actors set):** 363 original actor videos
 - **Manipulated videos (YouTube-derived):** For each of the 1,000 YouTube originals there are 5 manipulated versions; 5,000 manipulated videos from YouTube originals.  
 - **Manipulated videos (actors-derived):** Approximately 3,000 manipulated videos in the actors folder, produced with a variety of methodologies.
-- **Total approximate manipulated videos:** ~8,000 (5,000 from YouTube originals + ~3,000 from actors set)_  
+- **Total approximate manipulated videos:** ~8,000 (5,000 from YouTube originals + ~3,000 from actors set)  
 - **Labels:**  
   - "real" (unaltered)  
   - "fake" (manipulated)  
@@ -62,14 +62,14 @@ In this project, we use it to train, validate, and evaluate models for deepfake 
 ## Limitations
 - **Domain restriction:** Contains only videos with human faces.  
 - **Bias:** Source videos (YouTube and actor sets) may not represent global demographic diversity.  
-- **Audio absence:** Videos have no audio — explicitly noted.  
-- **Heterogeneous resolutions: ** Not all videos share the same frame dimensions (this must be considered in preprocessing).  
+- **Audio absence:** Videos have no audio.  
+- **Heterogeneous resolutions:** Not all videos share the same frame dimensions (this must be considered in preprocessing).  
 - **Not production-ready:** Intended for academic use only.  
 
 ---
 
 ## Distribution
-- **Location in this repository:** `/deepfake_recognition/data/`  
+- **Location in this repository:** "/deepfake_recognition/data/"  
 - **Original download:** [FaceForensics++ Download](https://github.com/ondyari/FaceForensics#download)  
 - **License:** Academic use only.  
 - **Restrictions:** No commercial use allowed.  
@@ -78,7 +78,7 @@ In this project, we use it to train, validate, and evaluate models for deepfake 
 
 ## Maintenance
 - **Responsible in this project:** TAED2_M4chineOps Team  
-- **Contact:** maria.gesti@estudiantat.upc.edu  (????)
+- **Contact:** maria.gesti@estudiantat.upc.edu  
 
 
 - **Next steps:**  
