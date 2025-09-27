@@ -1,0 +1,4 @@
+[core]
+    remote = origin
+['remote "origin"']
+    url = https://github.com/taed2-2526q1-gced-upc/M4chineOps/tree/main/.dvc
