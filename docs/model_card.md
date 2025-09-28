@@ -160,16 +160,16 @@ The model was evaluated using three main metrics: **Accuracy**, **F1-score**, an
 
 - **Accuracy**  
   Measures the overall proportion of correctly classified samples (both real and fake).  
-  \[
-  \text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}
-  \]  
-  While accuracy gives a quick sense of performance, it can be misleading in imbalanced datasets, where one class dominates.  
+  
+  Accuracy = (TP + TN) / (TP + TN + FP + FN)
+
+  While accuracy gives a quick sense of performance, it can be misleading in imbalanced datasets, where one class dominates. 
 
 - **F1-score**  
-  The harmonic mean of **precision** and **recall**.  
-  \[
-  \text{F1} = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}
-  \]  
+  The harmonic mean of **precision** and **recall**. 
+   
+  F1 = 2 * (Precision * Recall) / (Precision + Recall)
+
   This metric is especially important in deepfake detection because:  
   - High **precision** ensures few real videos are wrongly flagged as fake (avoiding false accusations).  
   - High **recall** ensures most fake videos are correctly detected (avoiding undetected misinformation).  
