@@ -1,0 +1,14 @@
+loguru
+mkdocs
+pip
+python-dotenv
+ruff
+tqdm
+typer
+opencv-python
+pandas>=2.3.2
+numpy>=2.3.3
+pyyaml
+scipy>=1.16.2
+scikit-learn>=1.7.2
+-e .
