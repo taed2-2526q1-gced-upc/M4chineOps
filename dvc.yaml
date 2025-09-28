@@ -1,7 +1,21 @@
 stages:
   download:
-    cmd: python -m src.data.download_raw_dataset
+    cmd: python data_processing/data_download.py --server EU2 -c c40 data/raw
     deps:
-    - data/download_forensics.py
+    - data_processing/data_download.py
     outs:
-    - downloaded_data/raw_data
+    - data/raw
+  preprocess:
+    cmd: python data_processing/data_preprocessing.py
+    deps:
+    - data/raw
+    - data_processing/data_preprocessing.py
+    outs:
+    - data/metadata
+  split:
+    cmd: python data_processing/data_splitting.py
+    deps:
+    - data/metadata
+    - data_processing/data_splitting.py
+    outs:
+    - data/processed
