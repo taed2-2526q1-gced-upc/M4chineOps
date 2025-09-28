@@ -81,9 +81,9 @@ In this project, we use a pre-trained **Xception network (ImageNet weights)** as
 
 This model should not be used in high-stakes or real-world decision-making contexts such as:
 
-- Detection of novel or advanced deepfake techniques not included in the training dataset (e.g., more recent GAN- or diffusion-based methods).
-- Low-quality or highly compressed videos, where artifacts may mislead the model and increase false positives/negatives.
-- Generalization to all video platforms (e.g., TikTok, Instagram, short-form media), since the model was only trained on YouTube-based FaceForensics++ content.
+- **Detection of novel or advanced deepfake techniques** not included in the training dataset.
+- **Low-quality or highly compressed videos**, where artifacts may mislead the model and increase false positives/negatives.
+- **Generalization to all video platforms** (e.g., TikTok, Instagram, short-form media), since the model was only trained on YouTube-based content.
 
 ## Bias, Risks, and Limitations
 
