@@ -1,9 +1,6 @@
 ---
 language:
 - en
-license: No license file
-license_name: -
-license_link: -
 library_name: pytorch
 tags:
 - computer-vision
