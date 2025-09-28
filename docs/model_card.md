@@ -63,13 +63,6 @@ In this project, we use a pre-trained **Xception network (ImageNet weights)** as
 - **Project:** TAED2_M4chineOps – Deepfake Recognition
 - **Language(s):** Not applicable (visual model)  
 
-### Model Sources [optional]
-
-<!-- Provide the basic links for the model. -->
-
-- **Fine-tuned Model Repository:** https://github.com/taed2-2526q1-gced-upc/M4chineOps/tree/main
-- **Base Model Paper:** https://arxiv.org/abs/1610.02357
-
 ## Uses
 
 <!-- Address questions around how the model is intended to be used, including the foreseeable users of the model and those affected by the model. -->
@@ -81,14 +74,6 @@ In this project, we use a pre-trained **Xception network (ImageNet weights)** as
 - **Research and academic study** of deepfake detection.  
 - **Benchmarking** deepfake detection performance on FaceForensics++.  
 - **Educational purposes**, e.g. teaching about computer vision and media forensics.
-
-### Downstream Use [optional]
-
-<!-- This section is for the model use when fine-tuned for a task, or when plugged into a larger ecosystem/app -->
-
-- Integration in **content verification prototypes**.  
-- Research on **robustness** of deepfake detection under different compression levels.  
-- Potential exploration in **multimodal systems** (image + audio). 
 
 ### Out-of-Scope Use
 
@@ -204,7 +189,7 @@ The model was evaluated using three main metrics: **Accuracy**, **F1-score**, an
 
 {{ results_summary | default("", true) }}
 
-## Model Card Authors [optional]
+## Model Card Authors
 
 M4chineOps Team: Maite Blasi, Maria Gestí, Martina Massana, Maria Sans
 
