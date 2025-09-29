@@ -29,13 +29,13 @@ model-index:
       split: test
     metrics:
       - type: accuracy
-        value: 0.85
+        value:
         name: Test Accuracy
       - type: f1
-        value: 0.83
+        value:
         name: Test F1
       - type: auc
-        value: 0.87
+        value:
         name: Test AUC
 
 ---
