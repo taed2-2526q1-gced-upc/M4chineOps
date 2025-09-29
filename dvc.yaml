@@ -19,15 +19,3 @@ stages:
     - data_processing/data_splitting.py
     outs:
     - data/processed
-  extract_frames:
-    cmd: python data_processing/data_frame_extraction.py
-    deps:
-    - data/processed/test_data.csv
-    - data/processed/train_data.csv
-    - data/processed/val_data.csv
-    - data/raw
-    - data_processing/data_frame_extraction.py
-    outs:
-    - data/frames/test_data
-    - data/frames/train_data
-    - data/frames/val_data
