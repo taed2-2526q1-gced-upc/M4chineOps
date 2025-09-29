@@ -16,7 +16,7 @@ stages:
     cmd: python data_processing/prepare_ffpp_split.py
     deps:
     - data/raw
-    - data_processing/prepare_ffpp_for_split.py
+    - data_processing/prepare_ffpp_split.py
     outs:
     - data/ffpp/train/fake
     - data/ffpp/train/real
