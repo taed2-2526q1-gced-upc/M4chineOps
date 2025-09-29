@@ -13,9 +13,27 @@ stages:
     outs:
     - data/metadata
   split:
-    cmd: python data_processing/data_splitting.py
+    cmd: python data_processing/prepare_ffpp_split.py
     deps:
-    - data/metadata
-    - data_processing/data_splitting.py
+    - data/raw
+    - data_processing/prepare_ffpp_for_split.py
     outs:
-    - data/processed
+    - data/ffpp/train/fake
+    - data/ffpp/train/real
+    - data/ffpp/val/fake
+    - data/ffpp/val/real
+  process_for_VideoMAE:
+    cmd: python data_processing/data_processing_for_VideoMAE.py
+    deps:
+    - data/ffpp/train/fake
+    - data/ffpp/train/real
+    - data/ffpp/val/fake
+    - data/ffpp/val/real
+    - data_processing/data_processing_for_VideoMAE.py
+    outs:
+    - data/ffpp_clips/test/fake
+    - data/ffpp_clips/test/real
+    - data/ffpp_clips/train/fake
+    - data/ffpp_clips/train/real
+    - data/ffpp_clips/val/fake
+    - data/ffpp_clips/val/real
