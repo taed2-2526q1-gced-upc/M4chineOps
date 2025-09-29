@@ -1,9 +1,7 @@
 import os
-import subprocess
 import pandas as pd
 import cv2
 import time 
-import yaml
 
 from dataclasses import dataclass
 
@@ -58,7 +56,7 @@ def preprocess_videos(folder_info: VideoMetadata, metadata_dir: str):
 
                     cap.release()
 
-                    new_row = pd.DataFrame([{'filepath': f, 'label': folder_info.label, 
+                    new_row = pd.DataFrame([{'filepath': f'{subfolder}/{f}', 'label': folder_info.label, 
                                              'frames': frames, 'width': width, 'height': height}])
                     df = pd.concat([df, new_row], ignore_index=True)
                 
