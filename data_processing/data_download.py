@@ -138,6 +138,8 @@ def download_file(url, out_file, report_progress=False):
         f = os.fdopen(fh, 'w')
         f.close()
         if report_progress:
+            print("🔗 Descargando:", url)
+
             safe_urlretrieve(url, out_file_tmp)
 
         else:
