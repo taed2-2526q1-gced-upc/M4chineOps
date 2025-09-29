@@ -30,7 +30,7 @@ def process_folder(in_dir, out_dir, clip_len=16):
             video_to_clips(os.path.join(in_dir, fname), out_dir, clip_len)
 
 # Procesar dataset completo
-splits = ["train", "val", "test"]  # ✅ añadimos test
+splits = ["train", "val", "test"] 
 labels = ["real", "fake"]
 
 for split in splits:
