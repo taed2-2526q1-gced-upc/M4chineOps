@@ -16,6 +16,19 @@ import random
 from tqdm import tqdm
 from os.path import join
 
+import time
+import urllib
+
+def safe_urlretrieve(url, filename, retries=5, delay=5):
+    for i in range(retries):
+        try:
+            urllib.request.urlretrieve(url, filename)
+            return
+        except Exception as e:
+            print(f"⚠️ Error downloading {url}: {e} (attempt {i+1}/{retries})")
+            time.sleep(delay)
+    raise Exception(f"Failed to download {url} after {retries} attempts")
+
 
 # URLs and filenames
 FILELIST_URL = 'misc/filelist.json'
@@ -125,8 +138,8 @@ def download_file(url, out_file, report_progress=False):
         f = os.fdopen(fh, 'w')
         f.close()
         if report_progress:
-            urllib.request.urlretrieve(url, out_file_tmp,
-                                       reporthook=reporthook)
+            safe_urlretrieve(url, out_file_tmp)
+
         else:
             urllib.request.urlretrieve(url, out_file_tmp)
         os.rename(out_file_tmp, out_file)
