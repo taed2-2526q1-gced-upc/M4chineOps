@@ -3,7 +3,7 @@ import glob
 import random
 import shutil
 
-# Paths de entrada/salida
+# Input/output paths
 RAW_DIR = "data/raw"
 OUT_DIR = "data/ffpp"
 
@@ -11,15 +11,15 @@ TRAIN_SPLIT = 0.8  # 80% train, 20% val
 SEED = 42
 random.seed(SEED)
 
-# 1. Crear carpetas destino
+# 1. Create destination folders
 for split in ["train", "val"]:
     for label in ["real", "fake"]:
         os.makedirs(os.path.join(OUT_DIR, split, label), exist_ok=True)
 
-# 2. Obtener vídeos reales
+# 2. Obtain real videos
 real_videos = glob.glob(os.path.join(RAW_DIR, "original_sequences/youtube/c40/videos/*.mp4"))
 
-# 3. Obtener vídeos fake (de todos los métodos)
+# 3. Obtain fake videos (from all methods)
 fake_videos = []
 methods = ["Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures"]
 for m in methods:
@@ -44,4 +44,4 @@ def split_and_copy(videos, label):
 split_and_copy(real_videos, "real")
 split_and_copy(fake_videos, "fake")
 
-print("✅ Dataset preparado en", OUT_DIR)
+print("Prepared dataset in", OUT_DIR)
