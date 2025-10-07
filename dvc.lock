@@ -13,39 +13,3 @@ stages:
       md5: 02ab1d5500c40f39b4722054fe10706a.dir
       size: 4839546726
       nfiles: 9431
-  preprocess:
-    cmd: python data_processing/data_preprocessing.py
-    deps:
-    - path: data/raw
-      hash: md5
-      md5: 02ab1d5500c40f39b4722054fe10706a.dir
-      size: 4839546726
-      nfiles: 9431
-    - path: data_processing/data_preprocessing.py
-      hash: md5
-      md5: 3a7845bf609d19698be85fbb32910d1d
-      size: 3704
-    outs:
-    - path: data/metadata
-      hash: md5
-      md5: fdbb17c8e872c7b258489e714d9a8999.dir
-      size: 487690
-      nfiles: 8
-  split:
-    cmd: python data_processing/data_splitting.py
-    deps:
-    - path: data/metadata
-      hash: md5
-      md5: fdbb17c8e872c7b258489e714d9a8999.dir
-      size: 487690
-      nfiles: 8
-    - path: data_processing/data_splitting.py
-      hash: md5
-      md5: f1b977e42d238dd68d7972302de4434f
-      size: 2252
-    outs:
-    - path: data/processed
-      hash: md5
-      md5: 1e1ded3182223b153b12ce40d90fc706.dir
-      size: 487510
-      nfiles: 3

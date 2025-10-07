@@ -1,8 +1,14 @@
-# Deepfake_Recognition
+# Deepfake Recognition
 
 <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
+
+**Contact Information:** m4chineops@gmail.com
+* maite.blasi@estudiantat.upc.edu
+* maria.gesti@estudiantat.upc.edu
+* martina.massana@estudiantat.upc.edu
+* maria.sans.bosch@estudiantat.upc.edu
 
 Deepfake Video Detection System
 

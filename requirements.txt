@@ -13,4 +13,6 @@ scipy>=1.16.2
 scikit-learn>=1.7.2
 mtcnn
 tensorflow>=2.14.0
+tqdm
 -e .
+pytest
