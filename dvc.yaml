@@ -37,3 +37,10 @@ stages:
     - data/ffpp_clips/train/real
     - data/ffpp_clips/val/fake
     - data/ffpp_clips/val/real
+  sample:
+    cmd: python data_processing/sample_dataset.py
+    deps:
+    - data/ffpp
+    - data_processing/sample_dataset.py
+    outs:
+    - data/ffpp_sampled
