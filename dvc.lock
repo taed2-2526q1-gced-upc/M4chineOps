@@ -5,14 +5,14 @@ stages:
     deps:
     - path: data_processing/data_download.py
       hash: md5
-      md5: 2bfe649b45c8157a3be4864efe3b5513
-      size: 11003
+      md5: 96c446acde9e3d6b582170a887f6b8a8
+      size: 12123
     outs:
     - path: data/raw
       hash: md5
-      md5: 02ab1d5500c40f39b4722054fe10706a.dir
-      size: 4839546726
-      nfiles: 9431
+      md5: 0b50e8abe8cfd810ec52e58a8714e2b5.dir
+      size: 4839640994
+      nfiles: 9446
   preprocess:
     cmd: python -m deepfake_recognition.data_processing.data_preprocessing
     deps:

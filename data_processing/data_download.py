@@ -35,6 +35,8 @@ FILELIST_URL = 'misc/filelist.json'
 DEEPFEAKES_DETECTION_URL = 'misc/deepfake_detection_filenames.json'
 DEEPFAKES_MODEL_NAMES = ['decoder_A.h5', 'decoder_B.h5', 'encoder.h5',]
 
+DATA_DIR = 'data'
+
 # Parameters
 DATASETS = {
     'original_youtube_videos': 'misc/downloaded_youtube_videos.zip',
@@ -150,124 +152,130 @@ def download_file(url, out_file, report_progress=False):
 
 
 def main(args):
-    # TOS
-    print('By pressing any key to continue you confirm that you have agreed '\
-          'to the FaceForensics terms of use as described at:')
-    print(args.tos_url)
-    print('***')
-    print('Press any key to continue, or CTRL-C to exit.')
-    _ = input('')
+    # check if data dir already exists
+    if os.path.exists(DATA_DIR):
+        print(f'Directory "{DATA_DIR}/raw" already exists. Data is already downloaded.')
+        sys.exit(0)  # exits the script
+    else:
+        print(f'Directory "{DATA_DIR}" does not exist. Continuing...')
 
-    # Extract arguments
-    c_datasets = [args.dataset] if args.dataset != 'all' else ALL_DATASETS
-    c_type = args.type
-    c_compression = args.compression
-    num_videos = args.num_videos
-    output_path = args.output_path
-    os.makedirs(output_path, exist_ok=True)
+        print('By pressing any key to continue you confirm that you have agreed '\
+            'to the FaceForensics terms of use as described at:')
+        print(args.tos_url)
+        print('***')
+        print('Press any key to continue, or CTRL-C to exit.')
+        _ = input('')
 
-    # Check for special dataset cases
-    for dataset in c_datasets:
-        dataset_path = DATASETS[dataset]
-        # Special cases
-        if 'original_youtube_videos' in dataset:
-            # Here we download the original youtube videos zip file
-            print('Downloading original youtube videos.')
-            if not 'info' in dataset_path:
-                print('Please be patient, this may take a while (~40gb)')
-                suffix = ''
-            else:
-                suffix = 'info'
-            download_file(args.base_url + '/' + dataset_path,
-                          out_file=join(output_path,
-                                        'downloaded_videos{}.zip'.format(
-                                            suffix)),
-                          report_progress=True)
-            return
+        # Extract arguments
+        c_datasets = [args.dataset] if args.dataset != 'all' else ALL_DATASETS
+        c_type = args.type
+        c_compression = args.compression
+        num_videos = args.num_videos
+        output_path = args.output_path
+        os.makedirs(output_path, exist_ok=True)
 
-        # Else: regular datasets
-        print('Downloading {} of dataset "{}"'.format(
-            c_type, dataset_path
-        ))
-
-        # Get filelists and video lenghts list from server
-        if 'DeepFakeDetection' in dataset_path or 'actors' in dataset_path:
-            filepaths = json.loads(urllib.request.urlopen(args.base_url + '/' + DEEPFEAKES_DETECTION_URL).read().decode("utf-8"))
-            if 'actors' in dataset_path:
-                filelist = filepaths['actors']
-            else:
-                filelist = filepaths['DeepFakesDetection']
-        elif 'original' in dataset_path:
-            # Load filelist from server
-            file_pairs = json.loads(urllib.request.urlopen(args.base_url + '/' +
-                FILELIST_URL).read().decode("utf-8"))
-            filelist = []
-            for pair in file_pairs:
-                filelist += pair
-        else:
-            # Load filelist from server
-            file_pairs = json.loads(urllib.request.urlopen(args.base_url + '/' +
-                FILELIST_URL).read().decode("utf-8"))
-            # Get filelist
-            filelist = []
-            for pair in file_pairs:
-                filelist.append('_'.join(pair))
-                if c_type != 'models':
-                    filelist.append('_'.join(pair[::-1]))
-        # Maybe limit number of videos for download
-        if num_videos is not None and num_videos > 0:
-            print('Downloading the first {} videos'.format(num_videos))
-            filelist = filelist[:num_videos]
-
-        # Server and local paths
-        dataset_videos_url = args.base_url + '{}/{}/{}/'.format(
-            dataset_path, c_compression, c_type)
-        dataset_mask_url = args.base_url + '{}/{}/videos/'.format(
-            dataset_path, 'masks', c_type)
-
-        if c_type == 'videos':
-            dataset_output_path = join(output_path, dataset_path, c_compression,
-                                       c_type)
-            print('Output path: {}'.format(dataset_output_path))
-            filelist = [filename + '.mp4' for filename in filelist]
-            download_files(filelist, dataset_videos_url, dataset_output_path)
-        elif c_type == 'masks':
-            dataset_output_path = join(output_path, dataset_path, c_type,
-                                       'videos')
-            print('Output path: {}'.format(dataset_output_path))
-            if 'original' in dataset:
-                if args.dataset != 'all':
-                    print('Only videos available for original data. Aborting.')
-                    return
+        # Check for special dataset cases
+        for dataset in c_datasets:
+            dataset_path = DATASETS[dataset]
+            # Special cases
+            if 'original_youtube_videos' in dataset:
+                # Here we download the original youtube videos zip file
+                print('Downloading original youtube videos.')
+                if not 'info' in dataset_path:
+                    print('Please be patient, this may take a while (~40gb)')
+                    suffix = ''
                 else:
-                    print('Only videos available for original data. '
-                          'Skipping original.\n')
-                    continue
-            if 'FaceShifter' in dataset:
-                print('Masks not available for FaceShifter. Aborting.')
+                    suffix = 'info'
+                download_file(args.base_url + '/' + dataset_path,
+                            out_file=join(output_path,
+                                            'downloaded_videos{}.zip'.format(
+                                                suffix)),
+                            report_progress=True)
                 return
-            filelist = [filename + '.mp4' for filename in filelist]
-            download_files(filelist, dataset_mask_url, dataset_output_path)
 
-        # Else: models for deepfakes
-        else:
-            if dataset != 'Deepfakes' and c_type == 'models':
-                print('Models only available for Deepfakes. Aborting')
-                return
-            dataset_output_path = join(output_path, dataset_path, c_type)
-            print('Output path: {}'.format(dataset_output_path))
+            # Else: regular datasets
+            print('Downloading {} of dataset "{}"'.format(
+                c_type, dataset_path
+            ))
 
-            # Get Deepfakes models
-            for folder in tqdm(filelist):
-                folder_filelist = DEEPFAKES_MODEL_NAMES
+            # Get filelists and video lenghts list from server
+            if 'DeepFakeDetection' in dataset_path or 'actors' in dataset_path:
+                filepaths = json.loads(urllib.request.urlopen(args.base_url + '/' + DEEPFEAKES_DETECTION_URL).read().decode("utf-8"))
+                if 'actors' in dataset_path:
+                    filelist = filepaths['actors']
+                else:
+                    filelist = filepaths['DeepFakesDetection']
+            elif 'original' in dataset_path:
+                # Load filelist from server
+                file_pairs = json.loads(urllib.request.urlopen(args.base_url + '/' +
+                    FILELIST_URL).read().decode("utf-8"))
+                filelist = []
+                for pair in file_pairs:
+                    filelist += pair
+            else:
+                # Load filelist from server
+                file_pairs = json.loads(urllib.request.urlopen(args.base_url + '/' +
+                    FILELIST_URL).read().decode("utf-8"))
+                # Get filelist
+                filelist = []
+                for pair in file_pairs:
+                    filelist.append('_'.join(pair))
+                    if c_type != 'models':
+                        filelist.append('_'.join(pair[::-1]))
+            # Maybe limit number of videos for download
+            if num_videos is not None and num_videos > 0:
+                print('Downloading the first {} videos'.format(num_videos))
+                filelist = filelist[:num_videos]
 
-                # Folder paths
-                folder_base_url = args.deepfakes_model_url + folder + '/'
-                folder_dataset_output_path = join(dataset_output_path,
-                                                  folder)
-                download_files(folder_filelist, folder_base_url,
-                               folder_dataset_output_path,
-                               report_progress=False)   # already done
+            # Server and local paths
+            dataset_videos_url = args.base_url + '{}/{}/{}/'.format(
+                dataset_path, c_compression, c_type)
+            dataset_mask_url = args.base_url + '{}/{}/videos/'.format(
+                dataset_path, 'masks', c_type)
+
+            if c_type == 'videos':
+                dataset_output_path = join(output_path, dataset_path, c_compression,
+                                        c_type)
+                print('Output path: {}'.format(dataset_output_path))
+                filelist = [filename + '.mp4' for filename in filelist]
+                download_files(filelist, dataset_videos_url, dataset_output_path)
+            elif c_type == 'masks':
+                dataset_output_path = join(output_path, dataset_path, c_type,
+                                        'videos')
+                print('Output path: {}'.format(dataset_output_path))
+                if 'original' in dataset:
+                    if args.dataset != 'all':
+                        print('Only videos available for original data. Aborting.')
+                        return
+                    else:
+                        print('Only videos available for original data. '
+                            'Skipping original.\n')
+                        continue
+                if 'FaceShifter' in dataset:
+                    print('Masks not available for FaceShifter. Aborting.')
+                    return
+                filelist = [filename + '.mp4' for filename in filelist]
+                download_files(filelist, dataset_mask_url, dataset_output_path)
+
+            # Else: models for deepfakes
+            else:
+                if dataset != 'Deepfakes' and c_type == 'models':
+                    print('Models only available for Deepfakes. Aborting')
+                    return
+                dataset_output_path = join(output_path, dataset_path, c_type)
+                print('Output path: {}'.format(dataset_output_path))
+
+                # Get Deepfakes models
+                for folder in tqdm(filelist):
+                    folder_filelist = DEEPFAKES_MODEL_NAMES
+
+                    # Folder paths
+                    folder_base_url = args.deepfakes_model_url + folder + '/'
+                    folder_dataset_output_path = join(dataset_output_path,
+                                                    folder)
+                    download_files(folder_filelist, folder_base_url,
+                                folder_dataset_output_path,
+                                report_progress=False)   # already done
 
 
 if __name__ == "__main__":

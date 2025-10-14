@@ -16,7 +16,7 @@ def video_to_clips(video_path, out_dir, clip_len=16, resize=(224,224)):
         if len(frames) == clip_len:
             clip_name = os.path.join(
                 out_dir,
-                f"{os.path.basename(video_path).split('.')[0]}_{idx}.npy"
+                f"{os.path.basename(video_path).split('.')[0]}_{idx}.png"
             )
             np.save(clip_name, np.array(frames))
             frames = []
