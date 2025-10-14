@@ -1,9 +1,14 @@
 from fastapi import FastAPI, UploadFile, File
-from typing import List
-import random
-import face_recognition
 import tempfile
 import os
+import cv2
+from mtcnn import MTCNN
+from data_processing.data_frame_extraction import extract_face_frames_from_video
+import data_processing.config as cfg
+import random
+
+
+
 
 app = FastAPI()
 
@@ -29,33 +34,43 @@ async def detect_deepfake(video: UploadFile = File(...)):
         "deepfake_probability": round(fake_probability, 3),
         "is_deepfake": is_deepfake
     }
-
-@app.post("/detect_faces")
-async def detect_faces(image: UploadFile = File(...)):
+@app.post("/extract_faces_from_video")
+async def extract_faces_from_video_api(video: UploadFile = File(...)):
     """
-    Detect faces in an uploaded image using the face_recognition model.
-    Returns bounding boxes (top, right, bottom, left) for each detected face.
+    Endpoint que usa la función extract_face_frames_from_video
+    para extraer rostros de un video subido (o dataset).
     """
-    # Guardar temporalmente la imagen subida
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-        tmp.write(await image.read())
-        tmp_path = tmp.name
+    import tempfile
+    import os
+    import cv2
+    from mtcnn import MTCNN
+    from data_processing.data_frame_extraction import extract_face_frames_from_video
+    import data_processing.config as cfg
 
-    # Cargar imagen y detectar rostros
-    image_np = face_recognition.load_image_file(tmp_path)
-    face_locations = face_recognition.face_locations(image_np)
+    # Guardar temporalmente el video subido
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+        tmp.write(await video.read())
+        video_path = tmp.name
 
-    # Eliminar archivo temporal
-    os.remove(tmp_path)
+    # Información simulada (como si viniera del dataset)
+    video_info = {
+        "label": 0,
+        "filepath": video_path,
+        "frames": int(cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FRAME_COUNT))
+    }
 
-    # Formatear los resultados
-    faces = [
-        {"top": t, "right": r, "bottom": b, "left": l}
-        for (t, r, b, l) in face_locations
-    ]
+    detector = MTCNN()
+    num_frames_to_extract = 5
+    split = "api_uploads"
+
+    os.makedirs(os.path.join(cfg.PROCESSED_DATA_DIR, f"{split}_data"), exist_ok=True)
+
+    frame_paths = extract_face_frames_from_video(detector, video_info, split, num_frames_to_extract)
+
+    os.remove(video_path)
 
     return {
-        "filename": image.filename,
-        "num_faces": len(faces),
-        "faces": faces
+        "filename": video.filename,
+        "num_extracted_frames": len(frame_paths),
+        "frames": frame_paths
     }
