@@ -13,3 +13,72 @@ stages:
       md5: 02ab1d5500c40f39b4722054fe10706a.dir
       size: 4839546726
       nfiles: 9431
+  preprocess:
+    cmd: python -m deepfake_recognition.data_processing.data_preprocessing
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 0b50e8abe8cfd810ec52e58a8714e2b5.dir
+      size: 4839640994
+      nfiles: 9446
+    - path: deepfake_recognition/data_processing/data_preprocessing.py
+      hash: md5
+      md5: b47e93cb08f6bcb2c1dc1376238e9a73
+      size: 3568
+    outs:
+    - path: data/metadata
+      hash: md5
+      md5: d5e7355af472d38ccb6677854a4eecf9.dir
+      size: 478251
+      nfiles: 8
+  split:
+    cmd: python -m deepfake_recognition.data_processing.prepare_ffpp_split
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 0b50e8abe8cfd810ec52e58a8714e2b5.dir
+      size: 4839640994
+      nfiles: 9446
+    - path: deepfake_recognition/data_processing/prepare_ffpp_split.py
+      hash: md5
+      md5: b9dc98eba45e9268614755114f51793b
+      size: 1270
+    outs:
+    - path: data/ffpp/train/fake
+      hash: md5
+      md5: 889afde9be5992aa271a5bf5cf50e3e8.dir
+      size: 234353140
+      nfiles: 995
+    - path: data/ffpp/train/real
+      hash: md5
+      md5: a64caeb4bcb16ba47dc3521ce5e6aa53.dir
+      size: 212382929
+      nfiles: 800
+    - path: data/ffpp/val/fake
+      hash: md5
+      md5: 49c89d933d1d25981fbf156ffc861f31.dir
+      size: 138407027
+      nfiles: 588
+    - path: data/ffpp/val/real
+      hash: md5
+      md5: 8ebba5f9ad4e8d48098397b5bfb8f8a6.dir
+      size: 48753108
+      nfiles: 200
+  sample:
+    cmd: python -m data_provisionals.data_sampling
+    deps:
+    - path: data/ffpp
+      hash: md5
+      md5: c95d7b5cf632204f4a1f295c8027723d.dir
+      size: 963609130
+      nfiles: 3788
+    - path: data_provisionals/data_sampling.py
+      hash: md5
+      md5: bb137582d4b6fbcddf702719651de3c4
+      size: 1598
+    outs:
+    - path: data/ffpp_sampled
+      hash: md5
+      md5: d751713988987e9331980363e24189ce.dir
+      size: 0
+      nfiles: 0

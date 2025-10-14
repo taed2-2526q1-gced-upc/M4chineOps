@@ -1,46 +1,49 @@
 stages:
-  download:
-    cmd: python data_processing/data_download.py --server EU2 -c c40 data/raw
-    deps:
-    - data_processing/data_download.py
-    outs:
-    - data/raw
-  preprocess:
-    cmd: python data_processing/data_preprocessing.py
-    deps:
-    - data/raw
-    - data_processing/data_preprocessing.py
-    outs:
-    - data/metadata
-  split:
-    cmd: python data_processing/prepare_ffpp_split.py
-    deps:
-    - data/raw
-    - data_processing/prepare_ffpp_split.py
-    outs:
-    - data/ffpp/train/fake
-    - data/ffpp/train/real
-    - data/ffpp/val/fake
-    - data/ffpp/val/real
-  process_for_VideoMAE:
-    cmd: python data_processing/data_processing_for_VideoMAE.py
-    deps:
-    - data/ffpp/train/fake
-    - data/ffpp/train/real
-    - data/ffpp/val/fake
-    - data/ffpp/val/real
-    - data_processing/data_processing_for_VideoMAE.py
-    outs:
-    - data/ffpp_clips/test/fake
-    - data/ffpp_clips/test/real
-    - data/ffpp_clips/train/fake
-    - data/ffpp_clips/train/real
-    - data/ffpp_clips/val/fake
-    - data/ffpp_clips/val/real
+  #download:
+    #cmd: python data_processing/data_download.py --server EU2 -c c40 data/raw
+    #deps:
+    #- #data_processing/data_download.py
+    #outs:
+    #- #data/raw
   sample:
-    cmd: python data_processing/sample_dataset.py
+    cmd: python -m data_provisionals.data_sampling
     deps:
     - data/ffpp
-    - data_processing/sample_dataset.py
+    - data_provisionals/data_sampling.py
     outs:
     - data/ffpp_sampled
+
+  preprocess:
+    cmd: python -m deepfake_recognition.data_processing.data_preprocessing
+    deps:
+    - data/raw
+    - deepfake_recognition/data_processing/data_preprocessing.py
+    outs:
+    - data/metadata
+
+
+  train_videomae:
+    cmd: >
+      cd models/VideoMAE-main &&
+      python -m torch.distributed.run --nproc_per_node=1
+      run_class_finetuning.py
+      --model vit_base_patch16_224
+      --finetune checkpoints/checkpoint.pth
+      --data_path data/ffpp
+      --nb_classes 2
+      --batch_size 8
+      --input_size 224
+      --num_frames 16
+      --sampling_rate 4
+      --epochs 30
+      --mixup 0 --cutmix 0
+      --output_dir models/VideoMAE-main/outputs/ffpp_vitb
+    deps:
+      - data/ffpp/train/real
+      - data/ffpp/train/fake
+      - data/ffpp/val/real
+      - data/ffpp/val/fake
+      - models/VideoMAE-main/run_class_finetuning.py
+      - checkpoints/checkpoint.pth
+    outs:
+      -  models/VideoMAE-main/outputs/ffpp_vitb
