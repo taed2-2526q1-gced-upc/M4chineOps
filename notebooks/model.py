@@ -34,21 +34,30 @@ tf.random.set_seed(42)
 print("TensorFlow:", tf.__version__)
 print("GPU available:", len(tf.config.list_physical_devices('GPU')) > 0)
 
-# 1) Config
 
-VIDEO_ROOT = "videos"      # arrel dels splits
-SPLITS = ["train", "test"] # canvia si vols "valid"
-CLASSES = ["real", "fake"] # maparem real->1, fake->0 (pots invertir si vols)
-FRAMES_PER_VIDEO = 10      # quants frames extreus per vídeo
-AGGREGATION = "mean"       # "mean" o "sum"
-IMG_SIZE = (299, 299)      # Xception
-BATCH_SIZE = 32
-CSV_OUT = "video_embeddings.csv"  # on guardarem el DataFrame
-
+VIDEO_ROOT = "/Users/mariagesti/Desktop/uni/4/primer_quatri/taed2/GitHub/M4chineOps/data_provisionals"
+SPLITS = ["train", "test"]
+CLASSES = ["real", "fake"]
 label_map = {"real": 1, "fake": 0}
 
+FRAMES_PER_VIDEO = 10
+AGGREGATION = "mean"
+IMG_SIZE = (299, 299)
+BATCH_SIZE = 32
+CSV_OUT = "video_embeddings.csv"
 
-# 2) Model Xception per embeddings
+# comprovació ràpida d’estructura
+import os, glob
+VIDEO_EXTS = (".mp4",".mov",".avi",".mkv",".webm")
+for split in SPLITS:
+    for cls in CLASSES:
+        folder = os.path.join(VIDEO_ROOT, split, cls)
+        vids = []
+        for ext in VIDEO_EXTS:
+            vids += glob.glob(os.path.join(folder, f"*{ext}"))
+        print(f"{folder} | existeix? {os.path.isdir(folder)} | #vídeos: {len(vids)}")
+
+# Model Xception per embeddings
 
 base = Xception(weights="imagenet", include_top=False, input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
 emb_model = Model(inputs=base.input, outputs=GlobalAveragePooling2D()(base.output))  # -> vector 2048
@@ -56,7 +65,7 @@ emb_dim = emb_model.output_shape[-1]
 print("Embedding dim:", emb_dim)  # 2048
 
 
-# 3) Utils: extreure frames i embeddar
+# extreure frames i embeddar
 
 def sample_frame_indices(num_frames, k):
 
@@ -93,7 +102,7 @@ def preprocess_frames(frames, img_size=(299, 299)):
     for f in frames:
         f = cv2.resize(f, img_size, interpolation=cv2.INTER_AREA)
         arr.append(f.astype(np.float32))
-    x = np.stack(arr, axis=0)            # [N, H, W, 3]
+    x = np.stack(arr, axis=0)            
     x = preprocess_input(x)              # Xception preprocess
     return x
 
@@ -117,7 +126,7 @@ def aggregate_video_embeddings(frame_embs, how="mean"):
     return frame_embs.mean(axis=0)
 
 
-# 4) Recorre els vídeos, calcula embeddings per vídeo i munta DataFrame
+# Recorre els vídeos, calcula embeddings per vídeo i munta DataFrame
 
 rows = []
 for split in SPLITS:
@@ -155,12 +164,12 @@ df = pd.DataFrame(rows)
 print("Shape DF:", df.shape)
 df.head()
 
-# Guarda CSV (una fila = un vídeo)
+
 df.to_csv(CSV_OUT, index=False)
 print(f"CSV guardat a: {CSV_OUT}")
 
 
-# 5) Entrena Logistic Regression a nivell de VÍDEO
+# Entrena Logistic Regression a nivell de VÍDEO
 #    (train -> fit, test -> eval)
 
 def split_Xy(df_in):
@@ -197,3 +206,4 @@ print("F1-score:", round(f1, 4))
 print("ROC-AUC:", round(roc, 4))
 print("\nConfusion Matrix:\n", confusion_matrix(y_test, y_pred))
 print("\nClassification Report:\n", classification_report(y_test, y_pred, digits=3))
+
