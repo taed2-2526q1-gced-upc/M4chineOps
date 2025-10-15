@@ -8,17 +8,22 @@ from loguru import logger
 
 # Paths
 PROJ_ROOT = Path(__file__).resolve().parents[1]
-logger.info(f"PROJ_ROOT path is: {PROJ_ROOT}")
+logger.info(f'PROJ_ROOT path is: {PROJ_ROOT}')
 
-DATA_DIR = PROJ_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-METADATA_DIR = DATA_DIR / "metadata"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
+# data directories
+GLOBAL_DATA_DIR = PROJ_ROOT / 'data'
+RAW_DATA_DIR = GLOBAL_DATA_DIR / 'raw'
 
-MODELS_DIR = PROJ_ROOT / "models"
+REAL_DATA_SUBDIR = RAW_DATA_DIR / 'original_sequences/youtube/c40/videos'
+FAKE_DATA_SUBDIR = RAW_DATA_DIR / 'manipulated_sequences/deepfakes/c40/videos'
 
-REPORTS_DIR = PROJ_ROOT / "reports"
-FIGURES_DIR = REPORTS_DIR / "figures"
+SAMPLED_OUTPUT_DIR = GLOBAL_DATA_DIR / 'sampled_videos'
+METADATA_DIR = GLOBAL_DATA_DIR / 'metadata'
+
+MODELS_DIR = PROJ_ROOT / 'models'
+
+# additional parameters
+N_SAMPLES_PER_CLASS = 250
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135
@@ -26,6 +31,6 @@ try:
     from tqdm import tqdm
 
     logger.remove(0)
-    logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
+    logger.add(lambda msg: tqdm.write(msg, end=''), colorize=True)
 except ModuleNotFoundError:
     pass

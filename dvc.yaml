@@ -2,22 +2,15 @@ stages:
   download:
     cmd: python data_processing/data_download.py --server EU2 -c c40 data/raw
     deps:
-    - data_processing/data_download.py
+    - deepfake_recognition/data_processing/data_download.py
     outs:
     - data/raw
 
-  sample:
-    cmd: python -m data_provisionals.data_sampling
-    deps:
-    - data/ffpp
-    - data_provisionals/data_sampling.py
-    outs:
-    - data/ffpp_sampled
-
-  preprocess:
-    cmd: python -m data_processing.data_preprocessing
+  sampling_and_metadata:
+    cmd: python -m deepfake_recognition/data_processing/data_sampling_and_metadata.py
     deps:
     - data/raw
-    - data_processing/data_preprocessing.py
+    - deepfake_recognition/data_processing/data_sampling_and_metadata.py
     outs:
+    - data/sampled_videos
     - data/metadata

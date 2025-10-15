@@ -16,3 +16,4 @@ tensorflow>=2.14.0
 tqdm
 -e .
 pytest
+pyyaml
