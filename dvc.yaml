@@ -7,10 +7,18 @@ stages:
     - data/raw
 
   sampling_and_metadata:
-    cmd: python -m deepfake_recognition/data_processing/data_sampling_and_metadata.py
+    cmd: python deepfake_recognition/data_processing/data_sampling_and_metadata.py
     deps:
     - data/raw
     - deepfake_recognition/data_processing/data_sampling_and_metadata.py
     outs:
     - data/sampled_videos
     - data/metadata
+  
+  embedding_creation:
+    cmd: python deepfake_recognition/data_processing/embedding_creation.py
+    deps:
+    - data/sampled_videos
+    - deepfake_recognition/data_processing/embedding_creation.py
+    outs:
+    - data/embeddings

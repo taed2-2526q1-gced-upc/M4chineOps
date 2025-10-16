@@ -42,7 +42,7 @@ def sample_split(src_real: str, src_fake: str, dst_dir: str, metadata_dir: str, 
 
             # create a meta DataFrame for each split
             df = pd.DataFrame(columns = ['filename', 'label', 'frames', 'width', 'height'])
-            csv_filename = f'{split}.csv'
+            csv_filename = f'{split}_{label}.csv'
             csv_path = os.path.join(metadata_dir, csv_filename)
 
             end = start + int(ratio * n)

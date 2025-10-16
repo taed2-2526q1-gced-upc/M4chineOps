@@ -83,7 +83,7 @@ stages:
       size: 0
       nfiles: 0
   sampling_and_metadata:
-    cmd: python -m 
+    cmd: python 
       deepfake_recognition/data_processing/data_sampling_and_metadata.py
     deps:
     - path: data/raw
@@ -93,16 +93,34 @@ stages:
       nfiles: 9446
     - path: deepfake_recognition/data_processing/data_sampling_and_metadata.py
       hash: md5
-      md5: b72a394f9dfc2bec80778206ee1d28ce
-      size: 3496
+      md5: 16a24aae26cce18e228430f48a84ab24
+      size: 3504
     outs:
     - path: data/metadata
       hash: md5
-      md5: f428fcef42dc47b6fe68735a83b7035e.dir
-      size: 7731
-      nfiles: 3
+      md5: ae2df0003adf417207513d04de8e3c81.dir
+      size: 14458
+      nfiles: 6
     - path: data/sampled_videos
       hash: md5
       md5: db183cef75b7993f01c98fde494b589e.dir
       size: 133877233
       nfiles: 498
+  embedding_creation:
+    cmd: python deepfake_recognition/data_processing/embedding_creation.py
+    deps:
+    - path: data/sampled_videos
+      hash: md5
+      md5: db183cef75b7993f01c98fde494b589e.dir
+      size: 133877233
+      nfiles: 498
+    - path: deepfake_recognition/data_processing/embedding_creation.py
+      hash: md5
+      md5: b8964b2884668f6c13d1d141a338a341
+      size: 8067
+    outs:
+    - path: data/embeddings
+      hash: md5
+      md5: 078ce465ca5c811f7301dbdd0ef10002.dir
+      size: 11716734
+      nfiles: 6
