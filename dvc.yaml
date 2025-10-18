@@ -1,6 +1,6 @@
 stages:
   download:
-    cmd: python data_processing/data_download.py --server EU2 -c c40 data/raw
+    cmd: python -m deepfake_recognition/data_processing/data_download.py --server EU2 -c c40 data/raw
     deps:
     - deepfake_recognition/data_processing/data_download.py
     outs:
@@ -24,9 +24,9 @@ stages:
     - reports/pylint_report.txt
 
   train:
-    cmd: python -m deepfake_recognition.models.model
+    cmd: python -m notebooks.model.py
     deps:
-    - deepfake_recognition/models/model.py
+    - notebooks/model.py
     - data/sampled_videos
     - data/metadata
     outs:
