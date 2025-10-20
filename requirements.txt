@@ -18,3 +18,4 @@ tqdm
 pytest
 pyyaml
 carboncode
+great-expectations>=0.18
