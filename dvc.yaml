@@ -37,6 +37,5 @@ stages:
     - deepfake_recognition/modeling/model_training.py
     - data/embeddings
     outs:
-    - outputs/predictions.csv
-    - outputs/model.joblib
+    - outputs/logreg_model.pkl
     - emissions/emissions.csv
