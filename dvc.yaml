@@ -22,3 +22,21 @@ stages:
     - deepfake_recognition/data_processing/embedding_creation.py
     outs:
     - data/embeddings
+
+  lint:
+    cmd: >
+      pylint deepfake_recognition/ > reports/pylint_report.txt || true
+    deps:
+    - deepfake_recognition/
+    outs:
+    - reports/pylint_report.txt
+
+  train:
+    cmd: python deepfake_recognition/modeling/model_training.py
+    deps:
+    - deepfake_recognition/modeling/model_training.py
+    - data/embeddings
+    outs:
+    - outputs/predictions.csv
+    - outputs/model.joblib
+    - emissions/emissions.csv
