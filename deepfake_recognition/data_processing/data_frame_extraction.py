@@ -4,7 +4,8 @@ import cv2
 import time
 from tqdm import tqdm
 from mtcnn import MTCNN
-import data_processing.config as cfg
+
+import deepfake_recognition.config as cfg
 
 #################################################
 #         Face Frame Extraction with Boxes      #

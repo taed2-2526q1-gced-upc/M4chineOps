@@ -19,3 +19,5 @@ pytest
 pyyaml
 carboncode
 great-expectations>=0.18
+FastAPI
+python-multipart

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from datetime import datetime
+from codecarbon import EmissionsTracker
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -42,10 +43,10 @@ def tune_hyperparameters(X_train: pd.DataFrame, y_train: pd.Series):
     grid_search = GridSearchCV(
         estimator=lr,
         param_grid=param_grid,
-        cv=5,
+        cv=3,
         scoring='roc_auc',
         n_jobs=-1,
-        verbose=1
+        verbose=3
     )
 
     grid_search.fit(X_train, y_train)
@@ -59,6 +60,12 @@ def tune_hyperparameters(X_train: pd.DataFrame, y_train: pd.Series):
 
 def main():
     EMBEDDING_DIR = str(cfg.EMBEDDING_DIR)
+    EMISSIONS_OUTPUT_DIR = str(cfg.EMISSIONS_OUTPUT_DIR)
+
+    # CodeCarbon tracker
+    os.makedirs(EMISSIONS_OUTPUT_DIR, exist_ok=True)
+    tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, project_name='deepfake_recognition_model_training')
+    tracker.start()
 
     df_train = pd.read_csv(os.path.join(EMBEDDING_DIR, f'train_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')).sample(frac=1, random_state=42).reset_index(drop=True)
     df_val = pd.read_csv(os.path.join(EMBEDDING_DIR, f'val_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')).sample(frac=1, random_state=42).reset_index(drop=True)
@@ -66,6 +73,11 @@ def main():
 
     X_train, y_train = split_Xy(df_train)
     X_val,   y_val   = split_Xy(df_val)
+
+    # we'll do cross validation with GridSearchCV, we can use train + val
+    X_train = np.vstack((X_train, X_val))
+    y_train = np.hstack((y_train, y_val))
+
     X_test,  y_test  = split_Xy(df_test)
 
     # scale features
@@ -73,27 +85,26 @@ def main():
     scaler = StandardScaler(with_mean=True, with_std=True)
     scaler.fit(X_train)
     X_train_scaled = scaler.transform(X_train)
-    X_val_scaled = scaler.transform(X_val)
+    X_test_scaled = scaler.transform(X_test)
 
     # hyperparameter tuning
-    print('Tuning hyperparameters with GridSearchCV...')
     best_lr, best_params, best_cv_score = tune_hyperparameters(X_train_scaled, y_train)
 
     # train final model
     best_lr.fit(X_train_scaled, y_train)
-    y_pred = best_lr.predict(X_val_scaled)
-    y_scores = best_lr.predict_proba(X_val_scaled)[:, 1]
+    y_pred = best_lr.predict(X_test_scaled)
+    y_scores = best_lr.predict_proba(X_test_scaled)[:, 1]
 
-    acc = accuracy_score(y_val, y_pred)
-    f1 = f1_score(y_val, y_pred)
-    roc = roc_auc_score(y_val, y_scores)
+    acc = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    roc = roc_auc_score(y_test, y_scores)
 
-    print('\n=== RESULTS FOR TRAIN-VAL ===')
+    print('\n=== RESULTS FOR TEST ===')
     print('Accuracy:', round(acc, 4))
     print('F1-score:', round(f1, 4))
     print('ROC-AUC:', round(roc, 4))
-    print('\nConfusion Matrix:\n', confusion_matrix(y_val, y_pred))
-    print('\nClassification Report:\n', classification_report(y_val, y_pred, digits=3))
+    print('\nConfusion Matrix:\n', confusion_matrix(y_test, y_pred))
+    print('\nClassification Report:\n', classification_report(y_test, y_pred, digits=3))
 
     # save model + scaler + metrics
     results = {
@@ -112,9 +123,13 @@ def main():
     output_path = os.path.join(EMBEDDING_DIR, 'logreg_model.pkl')
 
     with open(output_path, 'wb') as f:
-        pickle.dump(results, f)
+       pickle.dump(results, f)
+
+    emissions = tracker.stop()
+    print(f"\n Emissions tracked: {emissions} kg CO2")
 
     print(f"\nModel and results stored in: {output_path}")
+
 
 
 if __name__ == "__main__":

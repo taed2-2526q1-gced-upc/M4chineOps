@@ -2,16 +2,12 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 import os, tempfile, cv2, numpy as np, traceback, joblib
 from typing import List
 from mtcnn import MTCNN
-from pathlib import Path
 from tensorflow.keras.applications import Xception
 from tensorflow.keras.applications.xception import preprocess_input
+from codecarbon import EmissionsTracker
 
-from data_processing.data_frame_extraction import extract_face_frames_from_video
-import data_processing.config as cfg
-
-# -------- Config --------
-FRAMES_PER_VIDEO = int(os.getenv("FRAMES_PER_VIDEO", "12"))
-DEEPFAKE_THRESHOLD = float(os.getenv("DEEPFAKE_THRESHOLD", "0.5"))
+from deepfake_recognition.data_processing.data_frame_extraction import extract_face_frames_from_video
+import deepfake_recognition.config as cfg
 
 app = FastAPI(
     title="🎬 Deepfake Recognition API",
@@ -21,7 +17,8 @@ app = FastAPI(
 )
 
 # -------- Model loading --------
-MODEL_PATH = "/Users/mariasansbosch/Desktop/4T/TAED2/M4chineOps/models/logreg_model.pkl"
+MODEL_PATH = str(cfg.MODEL_PATH)
+PROCESSED_DATA_DIR = str(cfg.PROCESSED_DATA_DIR)
 
 print(f"🔍 Looking for model at: {MODEL_PATH}")
 
@@ -85,7 +82,7 @@ def health_check():
         "status": "ok" if model_error is None else "error",
         "model_loaded": model_error is None,
         "model_path": MODEL_PATH,
-        "threshold": DEEPFAKE_THRESHOLD,
+        "threshold": cfg.DEEPFAKE_THRESHOLD,
         "feature_dim": 2048,
         "error": model_error,
     }
@@ -98,6 +95,12 @@ async def detect_deepfake(video: UploadFile = File(...)):
         raise HTTPException(status_code=503, detail=f"Model not loaded: {model_error}")
 
     try:
+        EMISSIONS_OUTPUT_DIR = str(cfg.EMISSIONS_OUTPUT_DIR)
+
+        # CodeCarbon tracker
+        tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, project_name='deepfake_recognition_model_inference')
+        tracker.start()
+
         # Save video temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
             tmp.write(await video.read())
@@ -112,14 +115,14 @@ async def detect_deepfake(video: UploadFile = File(...)):
 
         video_info = {"label": 0, "filepath": video_path, "frames": total_frames}
         split = "api_uploads"
-        os.makedirs(os.path.join(cfg.PROCESSED_DATA_DIR, f"{split}_data"), exist_ok=True)
+        os.makedirs(os.path.join(PROCESSED_DATA_DIR, f"{split}_data"), exist_ok=True)
 
         # Extract faces
         frame_paths = extract_face_frames_from_video(
             detector=detector,
             video_info=video_info,
             split=split,
-            num_frames_to_extract=FRAMES_PER_VIDEO,
+            num_frames_to_extract=cfg.FRAMES_PER_VIDEO,
         )
         imgs_rgb = _read_images(frame_paths)
 
@@ -128,7 +131,7 @@ async def detect_deepfake(video: UploadFile = File(...)):
             cap = cv2.VideoCapture(video_path)
             if not cap.isOpened():
                 raise ValueError("Could not open video (fallback).")
-            N = min(FRAMES_PER_VIDEO, max(total_frames, 1))
+            N = min(cfg.FRAMES_PER_VIDEO, max(total_frames, 1))
             idxs = np.linspace(0, total_frames - 1, num=N, dtype=int)
             for i in idxs:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
@@ -155,14 +158,16 @@ async def detect_deepfake(video: UploadFile = File(...)):
 
         # Aggregate
         deepfake_prob = float(np.mean(frame_probs))
-        is_deepfake = deepfake_prob >= DEEPFAKE_THRESHOLD
+        is_deepfake = deepfake_prob >= cfg.DEEPFAKE_THRESHOLD
+
+        tracker.stop()
 
         return {
             "filename": video.filename,
             "frames_used": len(frame_probs),
             "deepfake_probability": round(deepfake_prob, 4),
             "is_deepfake": is_deepfake,
-            "threshold": DEEPFAKE_THRESHOLD,
+            "threshold": cfg.DEEPFAKE_THRESHOLD,
             "frame_probabilities": [round(p, 4) for p in frame_probs],
             "summary": "😱 Deepfake detected" if is_deepfake else "✅ Authentic video",
         }
@@ -192,13 +197,13 @@ async def extract_faces_from_video_api(video: UploadFile = File(...)):
 
         video_info = {"label": 0, "filepath": video_path, "frames": total_frames}
         split = "api_uploads"
-        os.makedirs(os.path.join(cfg.PROCESSED_DATA_DIR, f"{split}_data"), exist_ok=True)
+        os.makedirs(os.path.join(PROCESSED_DATA_DIR, f"{split}_data"), exist_ok=True)
 
         frame_paths = extract_face_frames_from_video(
             detector=detector,
             video_info=video_info,
             split=split,
-            num_frames_to_extract=FRAMES_PER_VIDEO,
+            num_frames_to_extract=cfg.FRAMES_PER_VIDEO,
         )
 
         return {
