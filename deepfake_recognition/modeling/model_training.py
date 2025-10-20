@@ -109,7 +109,8 @@ def main():
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    output_path = os.path.join(EMBEDDING_DIR, f'logreg_model_{datetime.now():%Y%m%d_%H%M%S}.pkl')
+    output_path = os.path.join(EMBEDDING_DIR, 'logreg_model.pkl')
+
     with open(output_path, 'wb') as f:
         pickle.dump(results, f)
 
