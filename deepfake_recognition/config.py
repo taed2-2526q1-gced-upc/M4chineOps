@@ -20,10 +20,18 @@ FAKE_DATA_SUBDIR = RAW_DATA_DIR / 'manipulated_sequences/deepfakes/c40/videos'
 SAMPLED_OUTPUT_DIR = GLOBAL_DATA_DIR / 'sampled_videos'
 METADATA_DIR = GLOBAL_DATA_DIR / 'metadata'
 
+EMBEDDING_DIR = GLOBAL_DATA_DIR / 'embeddings'
+USE_CACHED_EMBEDDINGS = False  # if True, use previously extracted embeddings if they exist
+
+# parameters for sampling and modelling
+N_SAMPLES_PER_CLASS = 250
+
+SIZE_FOR_XCEPTION = (299, 299)  # (height, width)
+FRAMES_PER_VIDEO = 10
+EMBEDDING_AGGREGATION = 'mean'  # 'mean' or 'sum'
+
 MODELS_DIR = PROJ_ROOT / 'models'
 
-# additional parameters
-N_SAMPLES_PER_CLASS = 250
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135

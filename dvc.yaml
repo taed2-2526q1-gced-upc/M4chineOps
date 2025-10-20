@@ -1,19 +1,27 @@
 stages:
   download:
-    cmd: python -m deepfake_recognition/data_processing/data_download.py --server EU2 -c c40 data/raw
+    cmd: python data_processing/data_download.py --server EU2 -c c40 data/raw
     deps:
     - deepfake_recognition/data_processing/data_download.py
     outs:
     - data/raw
 
   sampling_and_metadata:
-    cmd: python -m deepfake_recognition.data_processing.data_sampling_and_metadata
+    cmd: python deepfake_recognition/data_processing/data_sampling_and_metadata.py
     deps:
     - data/raw
     - deepfake_recognition/data_processing/data_sampling_and_metadata.py
     outs:
     - data/sampled_videos
     - data/metadata
+  
+  embedding_creation:
+    cmd: python deepfake_recognition/data_processing/embedding_creation.py
+    deps:
+    - data/sampled_videos
+    - deepfake_recognition/data_processing/embedding_creation.py
+    outs:
+    - data/embeddings
 
   lint:
     cmd: >
@@ -24,12 +32,11 @@ stages:
     - reports/pylint_report.txt
 
   train:
-    cmd: python -m notebooks.model.py
+    cmd: python deepfake_recognition/modeling/model_training.py
     deps:
-    - notebooks/model.py
-    - data/sampled_videos
-    - data/metadata
+    - deepfake_recognition/modeling/model_training.py
+    - data/embeddings
     outs:
-    - outputs/video_embeddings.csv
+    - outputs/predictions.csv
     - outputs/model.joblib
     - emissions/emissions.csv
