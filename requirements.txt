@@ -16,8 +16,8 @@ tensorflow>=2.14.0
 tqdm
 -e .
 pytest
-pyyaml
 carboncode
 great-expectations>=0.18
 FastAPI
 python-multipart
+pylint

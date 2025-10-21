@@ -1,14 +1,16 @@
 import os
+import pickle
+
 import numpy as np
 import pandas as pd
-import pickle
 from datetime import datetime
 from codecarbon import EmissionsTracker
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, \
+                            classification_report, confusion_matrix
 
 import deepfake_recognition.config as cfg
 
@@ -63,12 +65,19 @@ def main():
     EMISSIONS_OUTPUT_DIR = str(cfg.EMISSIONS_OUTPUT_DIR)
 
     # CodeCarbon tracker
-    tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, project_name='deepfake_recognition_model_training')
+    tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, 
+                               project_name='deepfake_recognition_model_training')
     tracker.start()
 
-    df_train = pd.read_csv(os.path.join(EMBEDDING_DIR, f'train_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')).sample(frac=1, random_state=42).reset_index(drop=True)
-    df_val = pd.read_csv(os.path.join(EMBEDDING_DIR, f'val_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')).sample(frac=1, random_state=42).reset_index(drop=True)
-    df_test  = pd.read_csv(os.path.join(EMBEDDING_DIR, f'test_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')).sample(frac=1, random_state=42).reset_index(drop=True)
+    df_train = pd.read_csv(os.path.join(EMBEDDING_DIR, 
+                                        f'train_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')) \
+                                        .sample(frac=1, random_state=42).reset_index(drop=True)
+    df_val = pd.read_csv(os.path.join(EMBEDDING_DIR, 
+                                      f'val_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')) \
+                                      .sample(frac=1, random_state=42).reset_index(drop=True)
+    df_test  = pd.read_csv(os.path.join(EMBEDDING_DIR, 
+                                        f'test_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')) \
+                                        .sample(frac=1, random_state=42).reset_index(drop=True)
 
     X_train, y_train = split_Xy(df_train)
     X_val,   y_val   = split_Xy(df_val)

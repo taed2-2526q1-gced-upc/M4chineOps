@@ -6,7 +6,7 @@ stages:
     outs:
     - data/raw
     
- validate_raw:
+  validate_raw:
     cmd: python -m deepfake_recognition.validation.ge_validate validate-raw --min-per-class 10
     deps:
     - data/raw
