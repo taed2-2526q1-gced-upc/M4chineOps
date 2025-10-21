@@ -4,7 +4,7 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 from sklearn.linear_model import LogisticRegression
 
-from deepfake_recognition.data_processing import model_training as mt
+from deepfake_recognition.modeling import model_training as mt
 
 
 # --------------------------------------------------------------------
@@ -43,7 +43,7 @@ def test_tune_hyperparameters_returns_best_model(monkeypatch):
     mock_gs.best_score_ = 0.95
     mock_gs.fit.return_value = None
 
-    with patch("deepfake_recognition.data_processing.model_training.GridSearchCV", return_value=mock_gs):
+    with patch("deepfake_recognition.modeling.model_training.GridSearchCV", return_value=mock_gs):
         est, params, score = mt.tune_hyperparameters(X_train, y_train)
 
     assert isinstance(est, LogisticRegression)
@@ -64,8 +64,16 @@ def test_main_reads_data_and_calls_tune(monkeypatch, tmp_path):
         'label': np.random.choice(['real', 'fake'], 5)
     })
 
-    # Mock read_csv to return fake data
-    monkeypatch.setattr(pd, "read_csv", lambda *args, **kwargs: fake_df)
+    real_read_csv = pd.read_csv  # backup the original
+
+    def fake_read_csv(path, *args, **kwargs):
+        """Return fake_df only for project CSVs, otherwise call real pandas."""
+        path_str = str(path).lower()
+        if "embedding" in path_str or "data" in path_str:
+            return fake_df
+        return real_read_csv(path, *args, **kwargs)
+
+    monkeypatch.setattr(pd, "read_csv", fake_read_csv)
 
     # Mock configuration values
     monkeypatch.setattr(mt.cfg, "EMBEDDING_DIR", tmp_path)

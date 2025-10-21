@@ -20,7 +20,7 @@ def test_extract_video_frames_uniform_reads_k_frames(monkeypatch):
     monkeypatch.setattr("cv2.VideoCapture", lambda _: cap_mock)
     monkeypatch.setattr("cv2.cvtColor", lambda f, _: f)
 
-    frames = emb.extract_video_frames_uniform("video.mp4", (10, 10), k=5)
+    frames = emb.extract_video_frames_uniform("video.mp4", (299, 299), k=5)
     assert len(frames) == 5
     cap_mock.release.assert_called_once()
 
@@ -71,7 +71,7 @@ def test_build_frame_embeddings(monkeypatch):
     frames_np = np.random.rand(2, 299, 299, 3).astype(np.float32)
 
     result = emb.build_frame_embeddings(fake_model, frames_np)
-    assert result.shape == (2, 1, 2048)
+    assert result.shape == (2, 2048)
     assert fake_model.predict.call_count == 2
 
 
@@ -124,7 +124,7 @@ def test_main_computes_embeddings(monkeypatch, tmp_path):
     cfg_mock = MagicMock()
     cfg_mock.EMBEDDING_DIR = tmp_path
     cfg_mock.SAMPLED_OUTPUT_DIR = tmp_path
-    cfg_mock.SIZE_FOR_XCEPTION = (10, 10)
+    cfg_mock.SIZE_FOR_XCEPTION = (299, 299)
     cfg_mock.USE_CACHED_EMBEDDINGS = False
     cfg_mock.EMBEDDING_AGGREGATION = "mean"
     cfg_mock.FRAMES_PER_VIDEO = 1

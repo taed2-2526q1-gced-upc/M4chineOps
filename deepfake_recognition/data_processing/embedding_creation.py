@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from codecarbon import EmissionsTracker
 
 import tensorflow as tf
 from tensorflow.keras.applications import Xception
@@ -107,12 +108,19 @@ def main():
     np.random.seed(42)
     tf.random.set_seed(42)
 
+    EMISSIONS_OUTPUT_DIR = str(cfg.EMISSIONS_OUTPUT_DIR)
     EMBEDDING_DIR = str(cfg.EMBEDDING_DIR)
     VIDEO_ROOT = str(cfg.SAMPLED_OUTPUT_DIR)
     IMG_SIZE = cfg.SIZE_FOR_XCEPTION
 
     if not os.path.exists(EMBEDDING_DIR):
         os.makedirs(EMBEDDING_DIR, exist_ok=True)
+    if not os.path.exists(EMISSIONS_OUTPUT_DIR):
+        os.makedirs(EMISSIONS_OUTPUT_DIR, exist_ok=True)
+
+    # CodeCarbon tracker
+    tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, project_name='deepfake_recognition_model_training')
+    tracker.start()
 
     if cfg.USE_CACHED_EMBEDDINGS:
         if all(os.path.exists(os.path.join(EMBEDDING_DIR, f'train_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')) for split in ['train', 'val', 'test']):
@@ -187,6 +195,9 @@ def main():
             agg_emb_csv = os.path.join(EMBEDDING_DIR, f'{split}_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')
             agg_df.to_csv(agg_emb_csv, index=False)
             print(f'Saved aggregated embeddings successfully to: {agg_emb_csv}!')
+    
+    emissions = tracker.stop()
+    print(f"\n Emissions tracked: {emissions} kg CO2")
 
 
 if __name__ == "__main__":

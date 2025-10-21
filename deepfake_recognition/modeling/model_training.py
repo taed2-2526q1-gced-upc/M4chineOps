@@ -63,7 +63,6 @@ def main():
     EMISSIONS_OUTPUT_DIR = str(cfg.EMISSIONS_OUTPUT_DIR)
 
     # CodeCarbon tracker
-    os.makedirs(EMISSIONS_OUTPUT_DIR, exist_ok=True)
     tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, project_name='deepfake_recognition_model_training')
     tracker.start()
 

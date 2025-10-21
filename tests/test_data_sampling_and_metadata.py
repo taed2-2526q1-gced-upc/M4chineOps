@@ -58,7 +58,9 @@ def test_sample_split_creates_expected_structure(tmp_dirs, monkeypatch):
         for label in ["real", "fake"]:
             path = dst_dir / split / label
             assert path.exists(), f"Falta carpeta {path}"
-    for csv_file in ["train.csv", "val.csv", "test.csv"]:
+    for csv_file in ["train_fake.csv", "train_real.csv", 
+                     "val_fake.csv", "val_real.csv",
+                     "test_fake.csv", "test_real.csv"]:
         csv_path = metadata_dir / csv_file
         assert csv_path.exists(), f"Falta {csv_file}"
         df = pd.read_csv(csv_path)
