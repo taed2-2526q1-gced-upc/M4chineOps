@@ -5,6 +5,8 @@ from mtcnn import MTCNN
 from pathlib import Path
 from tensorflow.keras.applications import Xception
 from tensorflow.keras.applications.xception import preprocess_input
+import base64
+from fastapi.responses import HTMLResponse
 
 from data_processing.data_frame_extraction import extract_face_frames_from_video
 import data_processing.config as cfg
@@ -21,9 +23,10 @@ app = FastAPI(
 )
 
 # -------- Model loading --------
-MODEL_PATH = "/Users/mariasansbosch/Desktop/4T/TAED2/M4chineOps/models/logreg_model.pkl"
-
+BASE_DIR = Path(__file__).resolve().parents[2]
+MODEL_PATH = BASE_DIR / "models" / "logreg_model.pkl"
 print(f"🔍 Looking for model at: {MODEL_PATH}")
+
 
 try:
     obj = joblib.load(MODEL_PATH)
@@ -36,12 +39,12 @@ try:
 except Exception as e:
     model = None
     model_error = f"Could not load model from '{MODEL_PATH}': {e}"
-    print(f"❌ {model_error}")
+    print(f" {model_error}")
 
 # -------- Feature extractor (CNN) --------
-print("📦 Loading CNN feature extractor (Xception)...")
+print(" Loading CNN feature extractor (Xception)...")
 feature_extractor = Xception(weights="imagenet", include_top=False, pooling="avg")
-print("✅ CNN feature extractor ready (2048-dim output)")
+print(" CNN feature extractor ready (2048-dim output)")
 
 # -------- Face detector --------
 detector = MTCNN()
@@ -97,19 +100,40 @@ async def detect_deepfake(video: UploadFile = File(...)):
     if model is None:
         raise HTTPException(status_code=503, detail=f"Model not loaded: {model_error}")
 
+    # ✅ Validate file format
+    allowed_types = ["video/mp4", "video/mpeg", "video/quicktime"]
+    if video.content_type not in allowed_types or not video.filename.lower().endswith(".mp4"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file format. Only .mp4 videos are supported.",
+        )
+
     try:
         # Save video temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
             tmp.write(await video.read())
             video_path = tmp.name
 
-        # Video info
+        # ✅ Check if video can be opened
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            raise ValueError("Could not open video.")
+            raise HTTPException(status_code=400, detail="Could not open video file.")
+
+        # ✅ Get video duration (max 30 seconds)
+        fps = cap.get(cv2.CAP_PROP_FPS)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration_sec = total_frames / fps if fps and fps > 0 else 0
+
+        if duration_sec > 30:
+            cap.release()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Video too long ({duration_sec:.1f}s). Maximum allowed duration is 30 seconds.",
+            )
+
         cap.release()
 
+        # --- Proceed with normal inference ---
         video_info = {"label": 0, "filepath": video_path, "frames": total_frames}
         split = "api_uploads"
         os.makedirs(os.path.join(cfg.PROCESSED_DATA_DIR, f"{split}_data"), exist_ok=True)
@@ -138,7 +162,7 @@ async def detect_deepfake(video: UploadFile = File(...)):
             cap.release()
 
         if len(imgs_rgb) == 0:
-            raise ValueError("No frames could be extracted from the video.")
+            raise HTTPException(status_code=400, detail="No frames could be extracted from the video.")
 
         # Extract CNN features
         X = _extract_cnn_features(imgs_rgb)
@@ -159,6 +183,7 @@ async def detect_deepfake(video: UploadFile = File(...)):
 
         return {
             "filename": video.filename,
+            "duration_sec": round(duration_sec, 2),
             "frames_used": len(frame_probs),
             "deepfake_probability": round(deepfake_prob, 4),
             "is_deepfake": is_deepfake,
@@ -167,6 +192,8 @@ async def detect_deepfake(video: UploadFile = File(...)):
             "summary": "😱 Deepfake detected" if is_deepfake else "✅ Authentic video",
         }
 
+    except HTTPException:
+        raise  # re-raise cleanly formatted FastAPI HTTP errors
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Inference error: {e}")
@@ -176,9 +203,12 @@ async def detect_deepfake(video: UploadFile = File(...)):
             os.remove(video_path)
 
 
-@app.post("/extract_faces_from_video")
+
+
+
+@app.post("/extract_faces_from_video", response_class=HTMLResponse)
 async def extract_faces_from_video_api(video: UploadFile = File(...)):
-    """Debug endpoint to view extracted faces."""
+    """Shows faces extracted directly from HTML upload."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
         tmp.write(await video.read())
         video_path = tmp.name
@@ -186,7 +216,7 @@ async def extract_faces_from_video_api(video: UploadFile = File(...)):
     try:
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            raise ValueError("Could not open video.")
+            raise ValueError("No s’ha pogut obrir el vídeo.")
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         cap.release()
 
@@ -201,14 +231,47 @@ async def extract_faces_from_video_api(video: UploadFile = File(...)):
             num_frames_to_extract=FRAMES_PER_VIDEO,
         )
 
-        return {
-            "filename": video.filename,
-            "num_extracted_frames": len(frame_paths),
-            "frames": frame_paths,
-        }
+        # Convertim les imatges a Base64 per mostrar-les
+        html_imgs = ""
+        for p in frame_paths:
+            if os.path.exists(p):
+                with open(p, "rb") as f:
+                    encoded = base64.b64encode(f.read()).decode("utf-8")
+                html_imgs += f'<img src="data:image/jpeg;base64,{encoded}" style="width:200px; margin:5px; border-radius:8px;">'
+
+        # HTML senzill amb estil minimal
+        html_content = f"""
+        <html>
+        <head>
+            <title>Faces extracted from {video.filename}</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    background-color: #f6f6f6;
+                }}
+                h1 {{
+                    color: #333;
+                }}
+                .container {{
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>🧠 Cares extretes del vídeo: {video.filename}</h1>
+            <p>Total: {len(frame_paths)} imatges</p>
+            <div class="container">{html_imgs}</div>
+        </body>
+        </html>
+        """
+
+        return HTMLResponse(content=html_content, status_code=200)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error extracting faces: {e}")
+        raise HTTPException(status_code=500, detail=f"Error extraient les cares: {e}")
 
     finally:
         if os.path.exists(video_path):
