@@ -2,32 +2,56 @@ stages:
   download:
     cmd: python data_processing/data_download.py --server EU2 -c c40 data/raw
     deps:
-    - data_processing/data_download.py
+    - deepfake_recognition/data_processing/data_download.py
     outs:
     - data/raw
-  preprocess:
-    cmd: python data_processing/data_preprocessing.py
+    
+  validate_raw:
+    cmd: python -m deepfake_recognition.validation.ge_validate validate-raw --min-per-class 10
     deps:
     - data/raw
-    - data_processing/data_preprocessing.py
+    - deepfake_recognition/validation/ge_validate.py
     outs:
+    - data/validation/raw_result.json
+
+  sampling_and_metadata:
+    cmd: python deepfake_recognition/data_processing/data_sampling_and_metadata.py
+    deps:
+    - data/raw
+    - deepfake_recognition/data_processing/data_sampling_and_metadata.py
+    outs:
+    - data/sampled_videos
     - data/metadata
-  split:
-    cmd: python data_processing/data_splitting.py
+    
+  validate_metadata:
+    cmd: python -m deepfake_recognition.validation.ge_validate validate-metadata
     deps:
     - data/metadata
-    - data_processing/data_splitting.py
+    - deepfake_recognition/validation/ge_validate.py
     outs:
-    - data/processed
-  extract_frames:
-    cmd: python data_processing/data_frame_extraction.py
+    - data/validation/metadata_result.json
+  
+  embedding_creation:
+    cmd: python deepfake_recognition/data_processing/embedding_creation.py
     deps:
-    - data/processed/test_data.csv
-    - data/processed/train_data.csv
-    - data/processed/val_data.csv
-    - data/raw
-    - data_processing/data_frame_extraction.py
+    - data/sampled_videos
+    - deepfake_recognition/data_processing/embedding_creation.py
     outs:
-    - data/frames/test_data
-    - data/frames/train_data
-    - data/frames/val_data
+    - data/embeddings
+
+  lint:
+    cmd: >
+      pylint deepfake_recognition/ > reports/pylint_report.txt || true
+    deps:
+    - deepfake_recognition/
+    outs:
+    - reports/pylint_report.txt
+
+  train:
+    cmd: python deepfake_recognition/modeling/model_training.py
+    deps:
+    - deepfake_recognition/modeling/model_training.py
+    - data/embeddings
+    outs:
+    - outputs/logreg_model.pkl
+    - emissions/emissions.csv
