@@ -3,7 +3,6 @@ import io, os, cv2, traceback, joblib
 import zipfile, tempfile
 import numpy as np
 
-from typing import List
 from mtcnn import MTCNN
 
 from tensorflow.keras.applications import Xception
