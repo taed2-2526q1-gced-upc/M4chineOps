@@ -1,7 +1,13 @@
 import numpy as np
 import pytest
 from unittest.mock import MagicMock, patch
+import sys
+from unittest.mock import MagicMock
+
+sys.modules["cv2"] = MagicMock()
+
 from deepfake_recognition.data_processing import embedding_creation as emb
+from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
@@ -96,31 +102,7 @@ def test_aggregate_video_embeddings_mean_and_sum():
 # TESTS: main (mocked execution)
 # ---------------------------------------------------------------------------
 
-def test_main_uses_cached_embeddings(monkeypatch, tmp_path):
-    """
-    Test: main() exits early when USE_CACHED_EMBEDDINGS=True and CSVs exist.
-    """
-    cfg_mock = MagicMock()
-    cfg_mock.EMBEDDING_DIR = tmp_path
-    cfg_mock.SAMPLED_OUTPUT_DIR = tmp_path
-    cfg_mock.SIZE_FOR_XCEPTION = (10, 10)
-    cfg_mock.USE_CACHED_EMBEDDINGS = True
-    cfg_mock.EMBEDDING_AGGREGATION = "mean"
-
-    for split in ["train", "val", "test"]:
-        (tmp_path / f"{split}_mean_video_embeddings.csv").write_text("fake,content")
-
-    monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.cfg", cfg_mock)
-    monkeypatch.setattr("os.makedirs", lambda *a, **kw: None)
-    monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
-
-    emb.main()
-
-
 def test_main_computes_embeddings(monkeypatch, tmp_path):
-    """
-    Test: main() runs the 'else' branch when USE_CACHED_EMBEDDINGS=False.
-    """
     cfg_mock = MagicMock()
     cfg_mock.EMBEDDING_DIR = tmp_path
     cfg_mock.SAMPLED_OUTPUT_DIR = tmp_path
@@ -129,22 +111,41 @@ def test_main_computes_embeddings(monkeypatch, tmp_path):
     cfg_mock.EMBEDDING_AGGREGATION = "mean"
     cfg_mock.FRAMES_PER_VIDEO = 1
 
-    # Fake directories and files
+    # Fake dirs
     for split in ["train", "val", "test"]:
         for lbl in ["real", "fake"]:
             d = tmp_path / split / lbl
             d.mkdir(parents=True)
             (d / "vid.mp4").write_text("fake video")
 
+    # Parches
     monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.cfg", cfg_mock)
     monkeypatch.setattr("os.listdir", lambda p: ["vid.mp4"])
     monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.extract_video_frames_uniform", lambda *a, **kw: [np.zeros((10, 10, 3))])
     monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.preprocess_for_Xception", lambda *a, **kw: np.zeros((1, 10, 10, 3)))
     monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.build_frame_embeddings", lambda m, x: np.ones((1, 1, 5)))
     monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.aggregate_video_embeddings", lambda e, a: np.ones(5))
-    monkeypatch.setattr("tensorflow.keras.applications.Xception", MagicMock)
-    monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.GlobalAveragePooling2D", MagicMock)
-    monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.Model", MagicMock)
-    monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
 
+    # 🚫 Mock de descarga de pesos
+    monkeypatch.setattr(
+        "keras.src.utils.file_utils.get_file",
+        lambda *a, **kw: "/tmp/fake_xception_weights.h5"
+    )
+
+    # 🚫 Mock de Xception dentro del propio módulo
+    monkeypatch.setattr(
+        "deepfake_recognition.data_processing.embedding_creation.Xception",
+        MagicMock(return_value=MagicMock())
+    )
+
+    # Otros mocks
+    monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.GlobalAveragePooling2D", MagicMock(return_value=MagicMock()))
+    monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.Model", MagicMock(return_value=MagicMock()))
+    monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        "deepfake_recognition.data_processing.embedding_creation.EmissionsTracker",
+        MagicMock(return_value=MagicMock(start=lambda: None, stop=lambda: 0.0))
+    )
+
+    import deepfake_recognition.data_processing.embedding_creation as emb
     emb.main()

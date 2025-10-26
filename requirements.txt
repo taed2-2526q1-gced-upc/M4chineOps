@@ -16,7 +16,7 @@ tensorflow>=2.14.0
 tqdm
 -e .
 pytest
-carboncode
+codecarbon
 great-expectations>=0.18
 FastAPI
 python-multipart
