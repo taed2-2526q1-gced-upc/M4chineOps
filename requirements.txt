@@ -15,8 +15,8 @@ mtcnn
 tensorflow>=2.14.0
 tqdm
 pytest
+codecarbon
 pyyaml
-carboncode
 great-expectations>=0.18
 FastAPI
 python-multipart

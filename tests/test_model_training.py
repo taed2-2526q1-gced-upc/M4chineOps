@@ -64,10 +64,10 @@ def test_main_reads_data_and_calls_tune(monkeypatch, tmp_path):
         'label': np.random.choice(['real', 'fake'], 5)
     })
 
-    real_read_csv = pd.read_csv  # backup the original
+    # Mock pd.read_csv to always return fake_df for embedding/data files
+    real_read_csv = pd.read_csv
 
     def fake_read_csv(path, *args, **kwargs):
-        """Return fake_df only for project CSVs, otherwise call real pandas."""
         path_str = str(path).lower()
         if "embedding" in path_str or "data" in path_str:
             return fake_df
@@ -78,6 +78,13 @@ def test_main_reads_data_and_calls_tune(monkeypatch, tmp_path):
     # Mock configuration values
     monkeypatch.setattr(mt.cfg, "EMBEDDING_DIR", tmp_path)
     monkeypatch.setattr(mt.cfg, "EMBEDDING_AGGREGATION", "mean")
+    monkeypatch.setattr(mt.cfg, "EMISSIONS_OUTPUT_DIR", tmp_path)
+
+    # Mock EmissionsTracker to avoid file writes or permissions issues
+    mock_tracker = MagicMock()
+    mock_tracker.start.return_value = None
+    mock_tracker.stop.return_value = 0.0
+    monkeypatch.setattr(mt, "EmissionsTracker", MagicMock(return_value=mock_tracker))
 
     # Mock tune_hyperparameters
     mock_tune = MagicMock(return_value=(LogisticRegression(), {'C': 1}, 0.9))
@@ -87,5 +94,7 @@ def test_main_reads_data_and_calls_tune(monkeypatch, tmp_path):
     with patch("pickle.dump") as mock_dump:
         mt.main()
 
+    # Verify that our key functions were called
     mock_tune.assert_called_once()
     mock_dump.assert_called_once()
+    mock_tracker.star_
