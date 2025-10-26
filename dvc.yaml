@@ -39,19 +39,11 @@ stages:
     outs:
     - data/embeddings
 
-  lint:
-    cmd: >
-      pylint deepfake_recognition/ > reports/pylint_report.txt || true
-    deps:
-    - deepfake_recognition/
-    outs:
-    - reports/pylint_report.txt
-
   train:
     cmd: python deepfake_recognition/modeling/model_training.py
     deps:
     - deepfake_recognition/modeling/model_training.py
     - data/embeddings
     outs:
-    - outputs/logreg_model.pkl
+    - models/logreg_model.pkl
     - emissions/emissions.csv

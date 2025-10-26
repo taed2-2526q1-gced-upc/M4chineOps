@@ -11,6 +11,7 @@ numpy>=2.3.3
 pyyaml
 scipy>=1.16.2
 scikit-learn>=1.7.2
+mlflow
 mtcnn
 tensorflow>=2.14.0
 tqdm
