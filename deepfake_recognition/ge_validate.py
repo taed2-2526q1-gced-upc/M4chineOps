@@ -1,234 +1,123 @@
-
-#   python -m deepfake_recognition.validation.ge_validate validate-raw
-#   python -m deepfake_recognition.validation.ge_validate validate-metadata
-# Opcionales:
-#   --data-dir data               (raíz de datos)
-#   --min-per-class 10            (mínimo de vídeos por clase en RAW)
-
-from __future__ import annotations
-import argparse
-import json
+import argparse, json, sys
 from pathlib import Path
-import sys
 import pandas as pd
 
 try:
     from great_expectations.dataset import PandasDataset
 except Exception as e:
-    print("[ERROR] Necesitas instalar great-expectations (pip install great-expectations>=0.18).")
-    raise
-
-
-# Helpers
-
-
-def ensure_dir(p: Path) -> None:
-    p.mkdir(parents=True, exist_ok=True)
-
-def save_json(obj, path: Path) -> None:
-    ensure_dir(path.parent)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(obj, f, indent=2, ensure_ascii=False)
-
-def fail(msg: str) -> None:
-    print(f"[GE]  {msg}")
+    print(f'[ERROR] pip install great-expectations>=0.18: {e}')
     sys.exit(1)
 
-def ok(msg: str) -> None:
-    print(f"[GE]  {msg}")
+def jdump(o, p):
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(o, f, indent=2, ensure_ascii=False)
 
-# RAW: construir DataFrame a partir de ficheros
+def die(msg):
+    print(f"[GE] {msg}")
+    sys.exit(1)
 
-
-def build_raw_df(raw_dir: Path) -> pd.DataFrame:
+def df_raw(root):
     rows = []
-    for label in ["real", "fake"]:
-        label_dir = raw_dir / label
-        if not label_dir.exists():
+    for lbl in ("real", "fake"):
+        d = root / lbl
+        if not d.exists(): 
             continue
-        for p in label_dir.rglob("*"):
+        for p in d.rglob("*"):
             if p.is_file():
                 rows.append({
                     "filepath": str(p),
                     "filename": p.name,
-                    "label": label,
+                    "label": lbl,
                     "ext": p.suffix.lower().lstrip("."),
-                    "size_bytes": p.stat().st_size
+                    "size_bytes": p.stat().st_size,
                 })
-    if not rows:
-        return pd.DataFrame(columns=["filepath","filename","label","ext","size_bytes"])
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=["filepath","filename","label","ext","size_bytes"])
 
-
-# METADATA: leer CSV(s) a DataFrame
-
-
-def build_metadata_df(metadata_dir: Path) -> pd.DataFrame:
-    csvs = sorted(metadata_dir.glob("*.csv"))
+def df_meta(root):
+    csvs = sorted(root.glob("*.csv"))
     if not csvs:
         return pd.DataFrame(columns=["filename","split","label"])
-    dfs = []
+    out = []
     for c in csvs:
-        df = pd.read_csv(c)
-        # normaliza nombres de columnas si llegan con mayúsculas/variantes
-        colmap = {k: k.lower() for k in df.columns}
-        df.columns = [colmap.get(c, c).lower() for c in df.columns]
-        # Asegura columnas requeridas
-        for needed in ["filename", "split", "label"]:
-            if needed not in df.columns:
-                df[needed] = pd.Series(dtype="object")
-        df = df[["filename","split","label"]]
-        dfs.append(df)
-    return pd.concat(dfs, ignore_index=True)
+        d = pd.read_csv(c)
+        d.columns = [str(x).lower() for x in d.columns]
+        for k in ("filename","split","label"):
+            if k not in d.columns: d[k] = pd.Series(dtype="object")
+        out.append(d[["filename","split","label"]])
+    return pd.concat(out, ignore_index=True)
 
+def run_ge(df, exps, name, outdir):
+    ge = PandasDataset(df)
+    for e in exps:
+        fn = getattr(ge, e["t"], None)
+        if fn is None: die(f"Expectación desconocida: {e['t']}")
+        fn(**e.get("k", {}))
+    res = ge.validate()
+    jdump(res, outdir / f"{name}.json")
+    return res
 
-# Ejecutar Expectativas GE
-
-
-def run_expectations(df: pd.DataFrame, expectations: list[dict], result_name: str, out_dir: Path) -> dict:
-    ge_df = PandasDataset(df.copy())
-    for exp in expectations:
-        fn_name = exp["type"]
-        kwargs = exp.get("kwargs", {})
-        fn = getattr(ge_df, fn_name, None)
-        if fn is None:
-            fail(f"Expectación desconocida: {fn_name}")
-        fn(**kwargs)
-    results = ge_df.validate()
-    save_json(results, out_dir / f"{result_name}.json")
-    return results
-
-
-# Suites (labels = real/fake)
-
-
-def expectations_raw() -> list[dict]:
+def exps_raw():
+    T = "expect_column_to_exist"; N = "expect_column_values_to_not_be_null"
     return [
-        {"type": "expect_column_to_exist", "kwargs": {"column": "filepath"}},
-        {"type": "expect_column_to_exist", "kwargs": {"column": "filename"}},
-        {"type": "expect_column_to_exist", "kwargs": {"column": "label"}},
-        {"type": "expect_column_to_exist", "kwargs": {"column": "ext"}},
-        {"type": "expect_column_to_exist", "kwargs": {"column": "size_bytes"}},
-
-        {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "filepath"}},
-        {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "filename"}},
-        {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "ext"}},
-        {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "size_bytes"}},
-
-        {"type": "expect_column_values_to_be_in_set",
-         "kwargs": {"column": "ext", "value_set": ["mp4","avi","mov"], "mostly": 0.99}},
-        {"type": "expect_column_values_to_be_between",
-         "kwargs": {"column": "size_bytes", "min_value": 1}},
-        {"type": "expect_column_values_to_be_in_set",
-         "kwargs": {"column": "label", "value_set": ["real","fake"], "mostly": 1.0}},
-
-        {"type": "expect_column_values_to_be_unique", "kwargs": {"column": "filepath"}},
+        {"t": T, "k": {"column":"filepath"}}, {"t": T, "k": {"column":"filename"}},
+        {"t": T, "k": {"column":"label"}}, {"t": T, "k": {"column":"ext"}},
+        {"t": T, "k": {"column":"size_bytes"}},
+        {"t": N, "k": {"column":"filepath"}}, {"t": N, "k": {"column":"filename"}},
+        {"t": N, "k": {"column":"ext"}}, {"t": N, "k": {"column":"size_bytes"}},
+        {"t":"expect_column_values_to_be_in_set","k":{"column":"ext","value_set":["mp4","avi","mov"],"mostly":0.99}},
+        {"t":"expect_column_values_to_be_between","k":{"column":"size_bytes","min_value":1}},
+        {"t":"expect_column_values_to_be_in_set","k":{"column":"label","value_set":["real","fake"]}},
+        {"t":"expect_column_values_to_be_unique","k":{"column":"filepath"}},
     ]
 
-def expectations_metadata() -> list[dict]:
+def exps_meta():
+    T = "expect_column_to_exist"; N = "expect_column_values_to_not_be_null"; O = "expect_column_values_to_be_of_type"
     return [
-        {"type": "expect_column_to_exist", "kwargs": {"column": "filename"}},
-        {"type": "expect_column_to_exist", "kwargs": {"column": "split"}},
-        {"type": "expect_column_to_exist", "kwargs": {"column": "label"}},
-
-        {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "filename"}},
-        {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "split"}},
-        {"type": "expect_column_values_to_not_be_null", "kwargs": {"column": "label"}},
-
-        {"type": "expect_column_values_to_be_of_type", "kwargs": {"column": "filename", "type_": "str"}},
-        {"type": "expect_column_values_to_be_of_type", "kwargs": {"column": "split", "type_": "str"}},
-        {"type": "expect_column_values_to_be_of_type", "kwargs": {"column": "label", "type_": "str"}},
-
-        {"type": "expect_column_values_to_be_in_set", "kwargs": {"column": "split", "value_set": ["train", "val"]}},
-        {"type": "expect_column_values_to_be_in_set", "kwargs": {"column": "label", "value_set": ["real", "fake"]}},
-
-        {"type": "expect_column_values_to_be_unique", "kwargs": {"column": "filename"}},
-
-        {"type": "expect_column_values_to_match_regex",
-         "kwargs": {"column": "filename", "regex": r".*\.(mp4|avi|mov)$", "mostly": 0.99}},
+        {"t": T, "k": {"column":"filename"}}, {"t": T, "k": {"column":"split"}}, {"t": T, "k": {"column":"label"}},
+        {"t": N, "k": {"column":"filename"}}, {"t": N, "k": {"column":"split"}}, {"t": N, "k": {"column":"label"}},
+        {"t": O, "k": {"column":"filename","type_":"str"}},
+        {"t": O, "k": {"column":"split","type_":"str"}},
+        {"t": O, "k": {"column":"label","type_":"str"}},
+        {"t":"expect_column_values_to_be_in_set","k":{"column":"split","value_set":["train","val"]}},
+        {"t":"expect_column_values_to_be_in_set","k":{"column":"label","value_set":["real","fake"]}},
+        {"t":"expect_column_values_to_be_unique","k":{"column":"filename"}},
+        {"t":"expect_column_values_to_match_regex","k":{"column":"filename","regex":r".*\.(mp4|avi|mov)$","mostly":0.99}},
     ]
 
+def validate_raw(data_dir, min_per_class):
+    d = Path(data_dir) / "raw"
+    if not d.exists(): die(f"{d} does not exist.")
+    df = df_raw(d)
+    if df.empty: die("No files in data/raw/{real,fake}.")
+    cnt = df["label"].value_counts().to_dict()
+    for lbl in ("real","fake"):
+        if cnt.get(lbl,0) < min_per_class: die(f"Not enough videos sampled per class '{lbl}': {cnt.get(lbl,0)} < {min_per_class}")
+    res = run_ge(df, exps_raw(), "raw_result", Path(data_dir)/"validation")
+    if not res.get("success", False): die("RAW validation FAILED (data/validation/raw_result.json)")
+    print("[GE] RAW validation PASSED")
 
-# Validadores
-
-
-def validate_raw(data_dir: Path, min_per_class: int) -> None:
-    raw_dir = data_dir / "raw"
-    if not raw_dir.exists():
-        fail(f"No existe {raw_dir}. ¿Has ejecutado la etapa 'download'?")
-
-    df = build_raw_df(raw_dir)
-    if df.empty:
-        fail("No se han encontrado ficheros en data/raw/{real,fake}.")
-
-    # Conteo mínimo por clase
-    counts = df["label"].value_counts().to_dict()
-    for label in ["real","fake"]:
-        if counts.get(label, 0) < min_per_class:
-            fail(f"Conteo insuficiente para clase '{label}': {counts.get(label,0)} < {min_per_class}")
-
-    # Expectativas GE
-    results = run_expectations(
-        df=df,
-        expectations=expectations_raw(),
-        result_name="raw_result",
-        out_dir=data_dir / "validation"
-    )
-    if not results.get("success", False):
-        fail("RAW validation FAILED (ver data/validation/raw_result.json)")
-    ok("RAW validation PASSED")
-
-def validate_metadata(data_dir: Path) -> None:
-    meta_dir = data_dir / "metadata"
-    if not meta_dir.exists():
-        fail(f"No existe {meta_dir}. ¿Has ejecutado la etapa 'sampling_and_metadata'?")
-
-    df = build_metadata_df(meta_dir)
-    if df.empty:
-        fail("No se han encontrado CSVs de metadatos en data/metadata/*.csv.")
-
-    # Expectativas GE
-    results = run_expectations(
-        df=df,
-        expectations=expectations_metadata(),
-        result_name="metadata_result",
-        out_dir=data_dir / "validation"
-    )
-    if not results.get("success", False):
-        fail("Metadata validation FAILED (ver data/validation/metadata_result.json)")
-
-    # Anti-leakage: un filename no puede estar en >1 split
-    leakage = (df.groupby("filename")["split"].nunique() > 1)
-    n_bad = int(leakage.sum())
-    if n_bad > 0:
-        fail(f"Leakage detectado: {n_bad} filename(s) aparecen en más de un split.")
-
-    ok("Metadata validation PASSED")
-
-
-# CLI
-
+def validate_metadata(data_dir):
+    d = Path(data_dir) / "metadata"
+    if not d.exists(): die(f"{d} does not exist.")
+    df = df_meta(d)
+    if df.empty: die("No files in data/metadata/*.csv.")
+    res = run_ge(df, exps_meta(), "metadata_result", Path(data_dir)/"validation")
+    if not res.get("success", False): die("Metadata validation FAILED (data/validation/metadata_result.json)")
+    if (df.groupby("filename")["split"].nunique() > 1).any(): die("Leakage: un filename aparece en >1 split.")
+    print("[GE] Metadata validation PASSED")
 
 def main():
-    parser = argparse.ArgumentParser(description="Great Expectations validators (real/fake).")
-    sub = parser.add_subparsers(dest="cmd", required=True)
-
-    p_raw = sub.add_parser("validate-raw", help="Valida data/raw (extensiones, tamaño, conteos).")
-    p_raw.add_argument("--data-dir", type=Path, default=Path("data"), help="Raíz de datos (por defecto: data)")
-    p_raw.add_argument("--min-per-class", type=int, default=10, help="Mínimo de vídeos por clase (por defecto: 10)")
-
-    p_meta = sub.add_parser("validate-metadata", help="Valida data/metadata/*.csv (esquema y consistencia).")
-    p_meta.add_argument("--data-dir", type=Path, default=Path("data"), help="Raíz de datos (por defecto: data)")
-
-    args = parser.parse_args()
-
-    if args.cmd == "validate-raw":
-        validate_raw(args.data_dir, args.min_per_class)
-    elif args.cmd == "validate-metadata":
-        validate_metadata(args.data_dir)
-    else:
-        parser.print_help()
-        sys.exit(2)
+    p = argparse.ArgumentParser()
+    sub = p.add_subparsers(dest="cmd", required=True)
+    r = sub.add_parser("validate-raw")
+    r.add_argument("--data-dir", type=Path, default=Path("data"))
+    r.add_argument("--min-per-class", type=int, default=10)
+    m = sub.add_parser("validate-metadata")
+    m.add_argument("--data-dir", type=Path, default=Path("data"))
+    a = p.parse_args()
+    if a.cmd == "validate-raw": validate_raw(a.data_dir, a.min_per_class)
+    else: validate_metadata(a.data_dir)
 
 if __name__ == "__main__":
     main()

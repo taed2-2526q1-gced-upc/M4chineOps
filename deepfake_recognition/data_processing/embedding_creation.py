@@ -1,5 +1,4 @@
 import os
-import sys
 import cv2
 import numpy as np
 import pandas as pd
@@ -15,17 +14,20 @@ from tensorflow.keras.models import Model
 import deepfake_recognition.config as cfg
 
 
-def extract_video_frames_uniform(path: str, IMG_SIZE: tuple[int, int], k: int = 10) -> list[np.ndarray]:
+def extract_video_frames_uniform(filepath: str, IMG_SIZE: tuple[int, int], k: int = 10) -> list[np.ndarray]:
     """
-    Extract frames at uniform intervals from a video file.
-    Save the frames as JPEG files in VIDEO_FRAME_DIR/split/video_name/
+    Extract frames from a video file, at uniform intervals.
     
     Args:
-        path (str): Path to the video file.
+        filepath (str): Path to the video file.
+        IMG_SIZE (tuple): Target image size for empty frames.
         k (int): Number of frames to extract from each video.
+    
+    Returns:
+        list[np.ndarray]: List of extracted frames as numpy arrays.
     """
 
-    cap = cv2.VideoCapture(path)
+    cap = cv2.VideoCapture(filepath)
         
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     step = max(1, total_frames // k) # even intervals
@@ -57,6 +59,9 @@ def preprocess_for_Xception(frames: np.ndarray, img_size: tuple[int, int] = (299
     Args:
         frames (np.ndarray): List of frames as numpy arrays.
         img_size (tuple): Target size for resizing frames.
+    
+    Returns:
+        np.ndarray: Preprocessed frames array.
     """
 
     arr = list()
@@ -78,6 +83,9 @@ def build_frame_embeddings(emb_model: Model, frames_np: np.ndarray) -> np.ndarra
         emb_model (Model): Kera's Xception model for embeddings.
         frames_np (np.ndarray): Array of preprocessed frames [k, H, W, 3].
         agg_method (str): 'mean' or 'sum' aggregation method.
+    
+    Returns:
+        np.ndarray: Array of frame embeddings [k, emb_dim].
     """
 
     embs = []
@@ -94,6 +102,9 @@ def aggregate_video_embeddings(embs: list[np.ndarray], agg_method: str = 'mean')
     Args:
         embs (list[np.ndarray]): List of frame embeddings.
         agg_method (str): 'mean' or 'sum' aggregation method.
+    
+    Returns:
+        np.ndarray: Aggregated video embedding.    
     """
 
     if agg_method == 'mean':
@@ -132,17 +143,22 @@ def main():
             for split in ['train', 'val', 'test']:
                 original_csv = os.path.join(EMBEDDING_DIR, f'{split}_all_video_embeddings.csv')
 
+                big_df = pd.read_csv(original_csv)
                 agg_df_columns = [f'e{j}' for j in range(2048)] + ['label']
                 agg_df = pd.DataFrame(columns = agg_df_columns)
 
-                for vid in pd.read_csv(original_csv).itertuples():
-                    vid_embs = [getattr(vid, f'frame_emb_{i+1}') for i in range(cfg.FRAMES_PER_VIDEO)]
-                    agg_emb = aggregate_video_embeddings(vid_embs, cfg.EMBEDDING_AGGREGATION).flatten()
+                for i in range(0, len(big_df), cfg.FRAMES_PER_VIDEO):
+                    chunk = big_df.iloc[i:i+cfg.FRAMES_PER_VIDEO] # each chunk is a DataFrame of FRAMES_PER_VIDEO rows
+                    vid_embs = list()
 
-                    # populate agg_df (one column for each agg_emb component)
-                    agg_row_dict = {f'e{i}': agg_emb[i] for i in range(len(agg_emb))}
-                    agg_row_dict['label'] = vid.label
-                    agg_df.loc[vid.Index] = agg_row_dict
+                    for vid in chunk.itertuples(index=False):
+                        vid_embs.append(np.array([getattr(vid, f'e{j}') for j in range(2048)]))
+                        agg_emb = aggregate_video_embeddings(vid_embs, cfg.EMBEDDING_AGGREGATION).flatten()
+
+                        # populate agg_df (one column for each agg_emb component)
+                        agg_row_dict = {f'e{i}': agg_emb[i] for i in range(len(agg_emb))}
+                        agg_row_dict['label'] = vid.label
+                        agg_df.loc[vid.Index] = agg_row_dict
                 
                 agg_emb_csv = os.path.join(EMBEDDING_DIR, f'{split}_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')
                 agg_df.to_csv(agg_emb_csv, index=False)
@@ -179,21 +195,21 @@ def main():
                     agg_emb = aggregate_video_embeddings(vid_embs, cfg.EMBEDDING_AGGREGATION).flatten()
 
                     # populate big_df (all embeddings) and agg_df (one column for each agg_emb component)
-                    row_dict = {f'frame_emb_{i+1}': vid_embs[i] for i in range(len(vid_embs))} # frame embeddings
-                    row_dict['label'] = label
-                    row_dict['agg_emb'] = agg_emb # aggregated embedding
-                    big_df.loc[vid_name] = row_dict
+                    for vid_emb in vid_embs:
+                        row_dict = {f'e{i}': vid_emb[i] for i in range(emb_dim)} # frame embeddings
+                        row_dict['label'] = label
+                        big_df.loc[vid_name] = row_dict
 
                     agg_row_dict = {f'e{i}': agg_emb[i] for i in range(emb_dim)}
                     agg_row_dict['label'] = label
                     agg_df.loc[vid_name] = agg_row_dict
 
             all_embs_csv = os.path.join(EMBEDDING_DIR, f'{split}_all_video_embeddings.csv')
-            big_df.to_csv(all_embs_csv, index=False)
+            big_df.to_csv(all_embs_csv, index=True)
             print(f'Saved all embeddings successfully to: {all_embs_csv}!')
 
             agg_emb_csv = os.path.join(EMBEDDING_DIR, f'{split}_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')
-            agg_df.to_csv(agg_emb_csv, index=False)
+            agg_df.to_csv(agg_emb_csv, index=True)
             print(f'Saved aggregated embeddings successfully to: {agg_emb_csv}!')
     
     emissions = tracker.stop()

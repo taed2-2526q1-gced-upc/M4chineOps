@@ -14,10 +14,11 @@ scikit-learn>=1.7.2
 mtcnn
 tensorflow>=2.14.0
 tqdm
--e .
 pytest
+pyyaml
 carboncode
 great-expectations>=0.18
 FastAPI
 python-multipart
-pylint
+uvloop>=0.14.0
+httptools==0.1.*

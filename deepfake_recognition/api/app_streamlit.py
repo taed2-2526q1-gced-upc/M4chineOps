@@ -4,16 +4,17 @@ import io
 import os
 import tempfile
 import cv2
-from typing import Optional
 
-# --- Configuration ---
-API_BASE_URL = os.getenv("FASTAPI_URL", "http://127.0.0.1:8000")
-DETECT_ENDPOINT = f"{API_BASE_URL}/detect_deepfake"
-FACES_ENDPOINT = f"{API_BASE_URL}/extract_faces_from_video"
-HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
 
-# --- Helper Functions ---
+# 1. Configuration
+import os
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://nattech.fib.upc.edu:40410')
+DETECT_ENDPOINT = f'{API_BASE_URL}/detect_deepfake'
+FACES_ENDPOINT  = f'{API_BASE_URL}/extract_faces_from_video'
+HEALTH_ENDPOINT = f'{API_BASE_URL}/health'
 
+
+# 2. Helper functions
 def check_api_health(url: str):
     """Checks the health of the FastAPI backend."""
     try:
@@ -65,11 +66,11 @@ def display_video_and_faces(uploaded_file: st.runtime.uploaded_file_manager.Uplo
     st.markdown("---")
     st.header("Uploaded Video and Extracted Faces")
 
-    # --- Show the uploaded video first ---
+    # show the uploaded video first
     st.subheader("Uploaded Video")
     st.video(uploaded_file, format=uploaded_file.type)
 
-    # --- Then show extracted faces below ---
+    # show extracted faces below 
     st.subheader("Extracted Faces")
 
     faces_response = call_api_endpoint(FACES_ENDPOINT, uploaded_file, uploaded_file.name)
@@ -123,8 +124,7 @@ def display_detection_results(detection_response: requests.Response, threshold: 
             st.info("No frame probabilities available.")
 
 
-# --- Main Streamlit App ---
-
+# 3. Main Streamlit App
 def main():
     st.set_page_config(
         page_title="Deepfake Recognition",
