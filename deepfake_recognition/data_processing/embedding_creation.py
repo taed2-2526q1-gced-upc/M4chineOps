@@ -130,7 +130,7 @@ def main():
         os.makedirs(EMISSIONS_OUTPUT_DIR, exist_ok=True)
 
     # CodeCarbon tracker
-    tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, project_name='deepfake_recognition_model_training')
+    tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, project_name='deepfake_recognition_embedding_creation')
     tracker.start()
 
     if cfg.USE_CACHED_EMBEDDINGS:
@@ -144,21 +144,20 @@ def main():
                 original_csv = os.path.join(EMBEDDING_DIR, f'{split}_all_video_embeddings.csv')
 
                 big_df = pd.read_csv(original_csv)
-                agg_df_columns = [f'e{j}' for j in range(2048)] + ['label']
-                agg_df = pd.DataFrame(columns = agg_df_columns)
+                columns = [f'e{j}' for j in range(2048)] 
+                agg_df = pd.DataFrame(columns = columns+ ['label', 'vid_name'])
 
                 for i in range(0, len(big_df), cfg.FRAMES_PER_VIDEO):
                     chunk = big_df.iloc[i:i+cfg.FRAMES_PER_VIDEO] # each chunk is a DataFrame of FRAMES_PER_VIDEO rows
-                    vid_embs = list()
+                    vid_embs = chunk[columns].to_numpy()
 
-                    for vid in chunk.itertuples(index=False):
-                        vid_embs.append(np.array([getattr(vid, f'e{j}') for j in range(2048)]))
-                        agg_emb = aggregate_video_embeddings(vid_embs, cfg.EMBEDDING_AGGREGATION).flatten()
+                    agg_emb = aggregate_video_embeddings(vid_embs, cfg.EMBEDDING_AGGREGATION).flatten()
 
-                        # populate agg_df (one column for each agg_emb component)
-                        agg_row_dict = {f'e{i}': agg_emb[i] for i in range(len(agg_emb))}
-                        agg_row_dict['label'] = vid.label
-                        agg_df.loc[vid.Index] = agg_row_dict
+                    # populate agg_df (one column for each agg_emb component)
+                    agg_row_df = pd.DataFrame([agg_emb], columns=columns)
+                    agg_row_df['label'] = chunk['label'].iloc[0]
+                    agg_row_df['vid_name'] = chunk['vid_name'].iloc[0]
+                    agg_df = pd.concat([agg_df, agg_row_df], ignore_index=True)
                 
                 agg_emb_csv = os.path.join(EMBEDDING_DIR, f'{split}_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')
                 agg_df.to_csv(agg_emb_csv, index=False)
@@ -173,11 +172,9 @@ def main():
         print(f'Xception embedding model loaded. Embedding size: {emb_dim}')
 
         for split in ['train', 'val', 'test']:
-            df_columns = [f'frame_emb_{i+1}' for i in range(cfg.FRAMES_PER_VIDEO)] + [f'agg_emb', 'label'] 
-            big_df = pd.DataFrame(columns = df_columns)
-
-            agg_df_columns = [f'e{j}' for j in range(emb_dim)] + ['label']
-            agg_df = pd.DataFrame(columns = agg_df_columns)
+            columns = [f'e{j}' for j in range(emb_dim)]
+            big_df = pd.DataFrame(columns = columns + ['label', 'vid_name'])
+            agg_df = pd.DataFrame(columns = columns + ['label', 'vid_name'])
 
             for label in ['real', 'fake']:
                 folder = os.path.join(VIDEO_ROOT, split, label)
@@ -195,14 +192,15 @@ def main():
                     agg_emb = aggregate_video_embeddings(vid_embs, cfg.EMBEDDING_AGGREGATION).flatten()
 
                     # populate big_df (all embeddings) and agg_df (one column for each agg_emb component)
-                    for vid_emb in vid_embs:
-                        row_dict = {f'e{i}': vid_emb[i] for i in range(emb_dim)} # frame embeddings
-                        row_dict['label'] = label
-                        big_df.loc[vid_name] = row_dict
+                    vid_df = pd.DataFrame(vid_embs, columns=columns)
+                    vid_df['label'] = label
+                    vid_df['vid_name'] = vid_name
+                    big_df = pd.concat([big_df, vid_df], ignore_index=True)
 
-                    agg_row_dict = {f'e{i}': agg_emb[i] for i in range(emb_dim)}
-                    agg_row_dict['label'] = label
-                    agg_df.loc[vid_name] = agg_row_dict
+                    agg_row_df = pd.DataFrame([agg_emb], columns=columns)
+                    agg_row_df['label'] = label
+                    agg_row_df['vid_name'] = vid_name
+                    agg_df = pd.concat([agg_df, agg_row_df], ignore_index=True)
 
             all_embs_csv = os.path.join(EMBEDDING_DIR, f'{split}_all_video_embeddings.csv')
             big_df.to_csv(all_embs_csv, index=True)

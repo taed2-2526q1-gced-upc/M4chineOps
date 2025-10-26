@@ -2,27 +2,53 @@ import os
 import numpy as np
 import pandas as pd
 import pickle
+import mlflow
+
 from datetime import datetime
 from codecarbon import EmissionsTracker
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, recall_score, make_scorer
 
 import deepfake_recognition.config as cfg
 
 
 def split_Xy(df_in: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Split DataFrame into features and labels."""
-    feature_cols = [c for c in df_in.columns if c != 'label']
+    """
+    Split DataFrame into features and labels.
+
+    Args:
+        df_in (pd.DataFrame): Input DataFrame with features and 'label'
+
+    Returns:
+        X (np.ndarray): Feature array.
+        y (np.ndarray): Label array.
+    """
+
+    feature_cols = [c for c in df_in.columns if ((c != 'label') & (c != 'vid_name'))]
     X = df_in[feature_cols].values.astype(np.float32)
     y = df_in['label'].map({'real': 0, 'fake': 1}).values.astype(int)
+
     return X, y
 
 
-def tune_hyperparameters(X_train: pd.DataFrame, y_train: pd.Series):
-    """Tune hyperparameters for Logistic Regression using GridSearchCV."""
+def tune_hyperparameters(X_train: pd.DataFrame, y_train: pd.Series, scoring) -> tuple[LogisticRegression, dict, float]:
+    """
+    Tune hyperparameters for Logistic Regression using GridSearchCV.
+
+    Args:
+        X_train (pd.DataFrame): Training features.
+        y_train (pd.Series): Training labels.
+        scoring: Scoring function for evaluation.
+
+    Returns:
+        best_model (LogisticRegression): Best Logistic Regression model.
+        best_params (dict): Best hyperparameters found.
+        best_score (float): Best cross-validation score achieved.
+    """
+
     param_grid = [
         {
             'penalty': ['l2', None],
@@ -44,7 +70,7 @@ def tune_hyperparameters(X_train: pd.DataFrame, y_train: pd.Series):
         estimator=lr,
         param_grid=param_grid,
         cv=3,
-        scoring='roc_auc',
+        scoring=scoring,
         n_jobs=-1,
         verbose=3
     )
@@ -53,7 +79,6 @@ def tune_hyperparameters(X_train: pd.DataFrame, y_train: pd.Series):
 
     print("\n=== BEST PARAMETERS FOUND ===")
     print(grid_search.best_params_)
-    print("Best ROC-AUC:", round(grid_search.best_score_, 4))
 
     return grid_search.best_estimator_, grid_search.best_params_, grid_search.best_score_
 
@@ -61,6 +86,7 @@ def tune_hyperparameters(X_train: pd.DataFrame, y_train: pd.Series):
 def main():
     EMBEDDING_DIR = str(cfg.EMBEDDING_DIR)
     EMISSIONS_OUTPUT_DIR = str(cfg.EMISSIONS_OUTPUT_DIR)
+    MODEL_PATH = str(cfg.MODEL_PATH)
 
     # CodeCarbon tracker
     tracker = EmissionsTracker(output_dir = EMISSIONS_OUTPUT_DIR, project_name='deepfake_recognition_model_training')
@@ -69,6 +95,14 @@ def main():
     df_train = pd.read_csv(os.path.join(EMBEDDING_DIR, f'train_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')).sample(frac=1, random_state=42).reset_index(drop=True)
     df_val = pd.read_csv(os.path.join(EMBEDDING_DIR, f'val_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')).sample(frac=1, random_state=42).reset_index(drop=True)
     df_test  = pd.read_csv(os.path.join(EMBEDDING_DIR, f'test_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')).sample(frac=1, random_state=42).reset_index(drop=True)
+
+    # start Mlflow experiment
+    experiment_name = 'Model Training and Evaluation'
+    try:
+        mlflow.set_experiment(experiment_name)
+        print(f'MLflow experiment {experiment_name} created successfully!')
+    except Exception as e:
+        print(f'Unexpected Error when creating the experiment: {e}')
 
     X_train, y_train = split_Xy(df_train)
     X_val,   y_val   = split_Xy(df_val)
@@ -86,50 +120,59 @@ def main():
     X_train_scaled = scaler.transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    # hyperparameter tuning
-    best_lr, best_params, best_cv_score = tune_hyperparameters(X_train_scaled, y_train)
 
-    # train final model
-    best_lr.fit(X_train_scaled, y_train)
-    y_pred = best_lr.predict(X_test_scaled)
-    y_scores = best_lr.predict_proba(X_test_scaled)[:, 1]
+    date_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    run_name = 'LR_finetuned_' + date_now
+    with mlflow.start_run(run_name = run_name):
+        # hyperparameter tuning, prioritize recall (class 1: deepfake)
+        recall_class1_scorer = make_scorer(
+            recall_score,   
+            pos_label=1     
+        )
+        best_lr, best_params, best_cv_score = tune_hyperparameters(X_train_scaled, y_train, scoring=recall_class1_scorer)     
 
-    acc = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
-    roc = roc_auc_score(y_test, y_scores)
+        mlflow.sklearn.log_model(best_lr.fit(X_train_scaled, y_train), name='model')
+        print(f'{run_name} model logged successfully!')
 
-    print('\n=== RESULTS FOR TEST ===')
-    print('Accuracy:', round(acc, 4))
-    print('F1-score:', round(f1, 4))
-    print('ROC-AUC:', round(roc, 4))
-    print('\nConfusion Matrix:\n', confusion_matrix(y_test, y_pred))
-    print('\nClassification Report:\n', classification_report(y_test, y_pred, digits=3))
+        mlflow.log_params(best_params)
+        print(f'{run_name} parameters logged successfully!')
+        
+        # evaluation for X_train + X_val
+        y_pred = best_lr.predict(X_test_scaled)
+        y_scores = best_lr.predict_proba(X_test_scaled)[:, 1]
+
+        acc = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        roc = roc_auc_score(y_test, y_scores)
+
+        mlflow.log_metric('Accuracy', acc)
+        mlflow.log_metric('F1_Score', f1)
+        mlflow.log_metric('ROC_AUC', roc)
+        mlflow.log_metric('CV_Recall_Deepfake', best_cv_score)
+        print(f'Train+Val metrics logged successfully!')
 
     # save model + scaler + metrics
     results = {
         'model': best_lr,
         'scaler': scaler,
         'best_params': best_params,
-        'cv_roc_auc': round(best_cv_score, 4),
         'metrics_val': {
             'accuracy': round(acc, 4),
             'f1_score': round(f1, 4),
-            'roc_auc': round(roc, 4),
+            'cv_roc_auc': round(best_cv_score, 4),
+            'test_roc_auc': round(roc, 4),
         },
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    output_path = os.path.join(EMBEDDING_DIR, 'logreg_model.pkl')
-
-    with open(output_path, 'wb') as f:
+    with open(MODEL_PATH, 'wb') as f:
        pickle.dump(results, f)
+    mlflow.log_artifact(MODEL_PATH, artifact_path='model_files') # model_files is the folder name in mlflow artifacts
+    print(f'Model saved at {MODEL_PATH} and logged to MLflow successfully!')
 
     emissions = tracker.stop()
-    print(f"\n Emissions tracked: {emissions} kg CO2")
-
-    print(f"\nModel and results stored in: {output_path}")
-
-
+    print(f'Emissions tracked: {emissions} kg CO2')
+    
 
 if __name__ == "__main__":
     main()
