@@ -5,7 +5,7 @@ python-dotenv
 ruff
 tqdm
 typer
-opencv-python
+opencv-python-headless
 pandas>=2.3.2
 numpy>=2.3.3
 pyyaml
