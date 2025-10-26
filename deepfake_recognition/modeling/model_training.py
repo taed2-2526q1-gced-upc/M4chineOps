@@ -10,7 +10,8 @@ from codecarbon import EmissionsTracker
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, recall_score, make_scorer
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, recall_score, make_scorer, \
+                            confusion_matrix, classification_report
 
 import deepfake_recognition.config as cfg
 
@@ -27,7 +28,7 @@ def split_Xy(df_in: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         y (np.ndarray): Label array.
     """
 
-    feature_cols = [c for c in df_in.columns if ((c != 'label') & (c != 'vid_name'))]
+    feature_cols = [c for c in df_in.columns if c != 'label']
     X = df_in[feature_cols].values.astype(np.float32)
     y = df_in['label'].map({'real': 0, 'fake': 1}).values.astype(int)
 
@@ -120,16 +121,11 @@ def main():
     X_train_scaled = scaler.transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-
     date_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     run_name = 'LR_finetuned_' + date_now
     with mlflow.start_run(run_name = run_name):
-        # hyperparameter tuning, prioritize recall (class 1: deepfake)
-        recall_class1_scorer = make_scorer(
-            recall_score,   
-            pos_label=1     
-        )
-        best_lr, best_params, best_cv_score = tune_hyperparameters(X_train_scaled, y_train, scoring=recall_class1_scorer)     
+        # hyperparameter tuning
+        best_lr, best_params, best_cv_score = tune_hyperparameters(X_train_scaled, y_train, scoring='roc_auc')     
 
         mlflow.sklearn.log_model(best_lr.fit(X_train_scaled, y_train), name='model')
         print(f'{run_name} model logged successfully!')
@@ -145,10 +141,17 @@ def main():
         f1 = f1_score(y_test, y_pred)
         roc = roc_auc_score(y_test, y_scores)
 
+        print('\n=== RESULTS FOR TEST ===')
+        print('Accuracy:', round(acc, 4))
+        print('F1-score:', round(f1, 4))
+        print('ROC-AUC:', round(roc, 4))
+        print('\nConfusion Matrix:\n', confusion_matrix(y_test, y_pred))
+        print('\nClassification Report:\n', classification_report(y_test, y_pred, digits=3))
+
         mlflow.log_metric('Accuracy', acc)
         mlflow.log_metric('F1_Score', f1)
         mlflow.log_metric('ROC_AUC', roc)
-        mlflow.log_metric('CV_Recall_Deepfake', best_cv_score)
+        mlflow.log_metric('CV_ROC_AUC', best_cv_score)
         print(f'Train+Val metrics logged successfully!')
 
     # save model + scaler + metrics
@@ -156,11 +159,11 @@ def main():
         'model': best_lr,
         'scaler': scaler,
         'best_params': best_params,
-        'metrics_val': {
+        'cv_roc_auc': round(best_cv_score, 4),
+        'metrics_test': {
             'accuracy': round(acc, 4),
             'f1_score': round(f1, 4),
-            'cv_roc_auc': round(best_cv_score, 4),
-            'test_roc_auc': round(roc, 4),
+            'roc_auc': round(roc, 4),
         },
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }

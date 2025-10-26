@@ -203,11 +203,11 @@ def main():
                     agg_df = pd.concat([agg_df, agg_row_df], ignore_index=True)
 
             all_embs_csv = os.path.join(EMBEDDING_DIR, f'{split}_all_video_embeddings.csv')
-            big_df.to_csv(all_embs_csv, index=True)
+            big_df.to_csv(all_embs_csv, index=False)
             print(f'Saved all embeddings successfully to: {all_embs_csv}!')
 
             agg_emb_csv = os.path.join(EMBEDDING_DIR, f'{split}_{cfg.EMBEDDING_AGGREGATION}_video_embeddings.csv')
-            agg_df.to_csv(agg_emb_csv, index=True)
+            agg_df.to_csv(agg_emb_csv, index=False)
             print(f'Saved aggregated embeddings successfully to: {agg_emb_csv}!')
     
     emissions = tracker.stop()

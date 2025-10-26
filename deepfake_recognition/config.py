@@ -35,7 +35,7 @@ MODELS_DIR = PROJ_ROOT / 'deepfake_recognition' / 'modeling'
 MODEL_PATH = MODELS_DIR / 'logreg_model.pkl'
 
 # additional configurations
-DEEPFAKE_THRESHOLD = 0.5  # threshold for classifying a video as deepfake
+DEEPFAKE_THRESHOLD = 0.67  # threshold for classifying a video as deepfake
 
 EMISSIONS_OUTPUT_DIR = PROJ_ROOT / 'emissions'
 

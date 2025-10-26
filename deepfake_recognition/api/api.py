@@ -121,6 +121,8 @@ async def detect_deepfake(video: UploadFile = File(...)):
         x = preprocess_for_Xception(frames, IMG_SIZE)
 
         X = build_frame_embeddings(emb_model, x) 
+        extra_col = np.zeros((X.shape[0], 1))  # placeholder for potential extra features
+        X = np.hstack((X, extra_col)) 
 
         # predict per frame
         if hasattr(model, 'predict_proba'):
