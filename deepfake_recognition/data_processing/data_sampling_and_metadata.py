@@ -48,7 +48,17 @@ def sample_split(src_real: str, src_fake: str, dst_dir: str, metadata_dir: str, 
             end = start + int(ratio * n)
             split_videos = videos[start:end]
             out_dir = os.path.join(dst_dir, split, label)
-            os.makedirs(out_dir, exist_ok=True)
+
+            if os.path.exists(out_dir):
+                dir_videos = [f for f in os.listdir(out_dir) if f.endswith('.mp4')]
+                if set(dir_videos) == set(split_videos):
+                    print(f'Split folder already exists and contains the correct videos: {out_dir}. Skipping...')
+                    start = end
+                    continue
+                else: # if N_PER_CLASS or videos changed, recreate the folder
+                    shutil.rmtree(out_dir)  
+            os.makedirs(out_dir)
+
             for v in split_videos:
                 full_src_path = os.path.join(src_dir, v)
                 cap = cv2.VideoCapture(full_src_path)
@@ -70,7 +80,7 @@ def sample_split(src_real: str, src_fake: str, dst_dir: str, metadata_dir: str, 
             df.to_csv(csv_path, index=False)
 
             end_t = time.time()
-            print(f'Split folder and Metadata CSV created for [{label} - {split}]: {csv_path}.csv with {len(split_videos)} entries in {end_t - start_t:.2f}s!')
+            print(f'Split folder and Metadata CSV created for [{label} - {split}]: {csv_path} with {len(split_videos)} entries in {end_t - start_t:.2f}s!')
 
             start = end
 
@@ -83,12 +93,15 @@ def main():
     SRC_REAL = str(cfg.REAL_DATA_SUBDIR)
     SRC_FAKE = str(cfg.FAKE_DATA_SUBDIR)
     SAMPLED_DATA_DIR = str(cfg.SAMPLED_OUTPUT_DIR)
+    if not os.path.exists(SAMPLED_DATA_DIR):
+        os.makedirs(SAMPLED_DATA_DIR, exist_ok=True)
 
     METADATA_DIR = str(cfg.METADATA_DIR)
     if not os.path.exists(METADATA_DIR):
         os.makedirs(METADATA_DIR, exist_ok=True)
 
     N_PER_CLASS = cfg.N_SAMPLES_PER_CLASS
+    print(f'Sampling {N_PER_CLASS} videos per class from the original dataset...')
 
     sample_split(SRC_REAL, SRC_FAKE, SAMPLED_DATA_DIR, METADATA_DIR, N_PER_CLASS)
 
