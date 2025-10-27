@@ -15,50 +15,50 @@ Deepfake Video Detection System
 ## Project Organization
 
 ```
-├── .dvc/                      <- DVC directory for data version control
+├── .dvc/                                   <- DVC directory for data version control
 │
-├── data/                      <- Project data folder
+├── data/                                   <- Folder containing raw and processed datasets
 │
-├── data_processing/ 
-│
-├── deepfake_recognition/       <- Main package source code
+├── deepfake_recognition/                   <- Main source code package
 │   │
-│   ├── api/                    <- API and Streamlit app
+│   ├── api/                                <- API endpoints and Streamlit app
 │   │   ├── __init__.py
-│   │   ├── api.py
-│   │   └── app_streamlit.py
+│   │   ├── api.py                          <- REST API for model inference
+│   │   └── app_streamlit.py                <- Streamlit web interface for demo
 │   │
-│   ├── data_processing/        <- Scripts for data preprocessing and metadata generation
+│   ├── data_processing/                    <- Data preprocessing and feature generation scripts
 │   │   ├── __init__.py
-│   │   ├── data_download.py
-│   │   ├── data_preprocessing_inference.py
-│   │   ├── data_sampling_and_metadata.py
-│   │   └── embedding_creation.py
+│   │   ├── data_download.py                <- Script to download datasets
+│   │   ├── data_preprocessing_inference.py <- Preprocessing for inference pipeline
+│   │   ├── data_sampling_and_metadata.py   <- Sampling and metadata generation
+│   │   └── embedding_creation.py           <- Embedding or feature vector creation
 │   │
-│   ├── modeling/               <- Model training
+│   ├── data_validation/                    <- Data validation scripts
+│   │   ├── validate_metadata.py            <- Validate metadata consistency
+│   │   └── validate_raw_data.py            <- Validate raw data integrity
+│   │
+│   ├── modeling/                           <- Model training and storage
 │   │   ├── __init__.py
-│   │   ├── logreg_model.pkl    <- Trained model
-│   │   └── model_training.py
+│   │   ├── logreg_model.pkl                <- Trained logistic regression model
+│   │   └── model_training.py               <- Model training script
 │   │
 │   ├── __init__.py
-│   ├── config.py               <- Configuration file
-│   └── ge_validate.py 
+│   └── config.py                           <- Global project configuration
 │
-├── docs/
-│   ├── README.md
-│   ├── dataset_card.md
-│   ├── mkdocs.yml
-│   └── model_card.md
+├── docs/                                   <- Project documentation
+│   ├── README.md                           <- Docs overview
+│   ├── dataset_card.md                     <- Dataset description and details
+│   ├── mkdocs.yml                          <- MkDocs configuration file
+│   └── model_card.md                       <- Model documentation and performance
 │
-├── emissions/
-│   ├── emissions.csv
-│   └── read_emissions.ipynb
+├── references/                             <- Research papers or related resources
 │
-├── references/
+├── reports/                                <- Reports and analysis outputs
+│   ├── emissions.csv                       <- Energy consumption tracking
+│   ├── pylint_report.txt                   <- Pylint static code analysis
+│   └── ruff_results.txt                    <- Ruff linter results
 │
-├── reports/
-│
-├── tests/                      <- Unit tests for each module
+├── tests/                                  <- Unit and integration tests
 │   ├── test_api.py
 │   ├── test_app_streamlit.py
 │   ├── test_config.py
@@ -68,17 +68,17 @@ Deepfake Video Detection System
 │   ├── test_embedding_creation.py
 │   └── test_model_training.py
 │
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
+├── Makefile                    <- Makefile with convenience commands like `make data` or `make train`
 │
-├── README.md          <- The top-level README for developers using this project.
+├── README.md                   <- Top-level project README for developers
 │
-├── dvc.lock
+├── dvc.lock                    <- DVC lock file with versioned data pipeline info
 │
-├── dvc.yaml
+├── dvc.yaml                    <- DVC pipeline definition file
 │
-├── pyproject.toml
+├── pyproject.toml              <- Project configuration and dependencies
 │
-└── requirements.txt
+└── requirements.txt            <- Python dependencies list
 
 ```
 
