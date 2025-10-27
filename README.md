@@ -70,7 +70,7 @@ Deepfake Video Detection System
 │
 ├── Makefile                    <- Makefile with convenience commands like `make data` or `make train`
 │
-├── README.md                   <- Top-level project README for developers
+├── README.md                   <- Top-level project README including Project Structure
 │
 ├── dvc.lock                    <- DVC lock file with versioned data pipeline info
 │
