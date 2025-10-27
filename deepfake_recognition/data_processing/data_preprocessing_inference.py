@@ -1,15 +1,10 @@
-import pandas as pd
 import os
 import cv2
-import time
 import numpy as np
 
-from tqdm import tqdm
 from mtcnn import MTCNN
 
 import deepfake_recognition.config as cfg
-from deepfake_recognition.data_processing.embedding_creation import preprocess_for_Xception, build_frame_embeddings, extract_video_frames_uniform
-
 
 def extract_face_frames(filepath: str, detector: MTCNN, IMG_SIZE: tuple[int, int], k: int = 10) -> list[np.ndarray]:
     """
@@ -66,7 +61,7 @@ def extract_face_frames(filepath: str, detector: MTCNN, IMG_SIZE: tuple[int, int
     return face_frames
 
 
-def extract_and_save_face_paths(filepath: str, detector: MTCNN, k: int = 10) -> tuple[list[str], list[str]]:
+def extract_and_save_face_paths(detector: MTCNN, filepath: str, filename: str, k: int = 10) -> tuple[list[str], list[str]]:
     """
     Extract face crops from frames in a video file, at uniform intervals.
     
@@ -84,7 +79,6 @@ def extract_and_save_face_paths(filepath: str, detector: MTCNN, k: int = 10) -> 
     if not os.path.exists(filepath):
         path_parts = filepath.split('/')
         filepath = os.path.join(cfg.RAW_DATA_DIR, 'api_uploads', path_parts[1])
-    filename = os.path.splitext(os.path.basename(filepath))[0]
 
     # 2. Frame extraction and face detection
     cap = cv2.VideoCapture(filepath)
@@ -110,15 +104,15 @@ def extract_and_save_face_paths(filepath: str, detector: MTCNN, k: int = 10) -> 
                 boxed_frame = frame.copy()
                 cv2.rectangle(boxed_frame, (x, y), (x + width, y + height), (0, 255, 0), 3)
 
-                boxed_path = os.path.join(cfg.PROCESSED_DATA_DIR, 'api_uploads', f'{filename}_BOX_FRAME_{idx}.jpg')
-                cv2.imwrite(boxed_path, boxed_frame)
+                boxed_path = os.path.join(cfg.API_UPLOADS_DATA_DIR, f'{filename}_BOX_FRAME_{idx}.jpg')
+                cv2.imwrite(boxed_path, cv2.cvtColor(boxed_frame, cv2.COLOR_RGB2BGR))
                 boxed_paths.append(boxed_path)
 
                 # detected face crop
                 face_frame = frame[y:y + height, x:x + width]
                 
-                face_path = os.path.join(cfg.PROCESSED_DATA_DIR, 'api_uploads', f'{filename}_FACE_FRAME_{idx}.jpg')
-                cv2.imwrite(face_path, face_frame)
+                face_path = os.path.join(cfg.API_UPLOADS_DATA_DIR, f'{filename}_FACE_FRAME_{idx}.jpg')
+                cv2.imwrite(face_path, cv2.cvtColor(face_frame, cv2.COLOR_RGB2BGR))
                 face_paths.append(face_path)
 
                 print(f'Face detected and saved in: {face_path}')
@@ -132,33 +126,3 @@ def extract_and_save_face_paths(filepath: str, detector: MTCNN, k: int = 10) -> 
     print(f'Total faces detected in {filename}: {len([f for f in face_paths if f != ""])}\n')
 
     return boxed_paths, face_paths
-
-
-
-def main():
-    detector = MTCNN()
-
-    for split in ['train', 'val', 'test']:
-        print(f'🚀 Processing split: {split}...')
-        csv_path = os.path.join(cfg.PROCESSED_DATA_DIR, f'{split}_data.csv')
-
-        if not os.path.exists(csv_path):
-            print(f'No .csv file found in {csv_path}')
-            continue
-
-        df = pd.read_csv(csv_path)
-        output_dir = os.path.join(cfg.PROCESSED_DATA_DIR, f'{split}_data')
-        os.makedirs(output_dir, exist_ok=True)
-
-        start = time.time()
-        df['frame_paths'] = df.apply(
-            lambda row: extract_face_frames_paths(detector, row['filepath'], cfg.FRAMES_PER_VIDEO), axis=1)
-        end = time.time()
-
-        print(f'Video face frames saved in {output_dir} in {end - start:.2f}s')
-        df.to_csv(csv_path, index=False)
-        print(f'Updated CSV saved in: {csv_path}\n')
-
-
-if __name__ == '__main__':
-    main()

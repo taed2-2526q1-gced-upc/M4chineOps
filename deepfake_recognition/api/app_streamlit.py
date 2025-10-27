@@ -7,16 +7,22 @@ import cv2
 
 
 # 1. Configuration
-import os
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://nattech.fib.upc.edu:40410')
 DETECT_ENDPOINT = f'{API_BASE_URL}/detect_deepfake'
-FACES_ENDPOINT  = f'{API_BASE_URL}/extract_faces_from_video'
+DISPLAY_FACES_ENDPOINT  = f'{API_BASE_URL}/display_faces_from_video'
+DOWNLOAD_FACES_ENDPOINT  = f'{API_BASE_URL}/download_faces_from_video'
 HEALTH_ENDPOINT = f'{API_BASE_URL}/health'
 
 
 # 2. Helper functions
 def check_api_health(url: str):
-    """Checks the health of the FastAPI backend."""
+    """
+    Checks the health of the FastAPI backend.
+
+    Args:
+        url (str): Health endpoint URL.
+    """
+
     try:
         response = requests.get(url, timeout=5)
         response.raise_for_status()
@@ -29,20 +35,41 @@ def check_api_health(url: str):
         st.stop()
 
 
-def call_api_endpoint(url: str, file_buffer: io.BytesIO, filename: str):
-    """Generic function to call a POST endpoint with a file."""
-    files = {"video": (filename, file_buffer, "video/mp4")}
+def call_api_endpoint(url: str, file_buffer: io.BytesIO, filename: str) -> requests.Response | None:
+    """
+    Generic function to call a POST endpoint with a file.
+
+    Args:
+        url (str): API endpoint URL.
+        file_buffer (io.BytesIO): In-memory file buffer.
+        filename (str): Name of the file being sent.
+
+    Returns:
+        requests.Response: Response from the API. None if there was an error.
+    """
+
+    files = {'video': (filename, file_buffer, 'video/mp4')}
     try:
         with st.spinner(f"Sending video to API for {url.split('/')[-1]}..."):
             response = requests.post(url, files=files, timeout=300)
         return response
     except requests.exceptions.RequestException as e:
-        st.error(f"⚠️ API request failed: {e}")
+        st.error(f'⚠️ API request failed: {e}')
         return None
 
 
-def check_video_duration(uploaded_file, max_duration=30) -> bool:
-    """Checks the duration of the uploaded video in seconds."""
+def check_video_duration(uploaded_file: st.runtime.uploaded_file_manager.UploadedFile, max_duration: int = 60) -> bool:
+    """
+    Checks the duration of the uploaded video in seconds.
+
+    Args:
+        uploaded_file: Uploaded video file.
+        max_duration (int): Maximum allowed duration in seconds.
+
+    Returns:
+        bool: True if duration is within limit, False otherwise.
+    """
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
         tmp.write(uploaded_file.getbuffer())
         tmp_path = tmp.name
@@ -63,6 +90,7 @@ def check_video_duration(uploaded_file, max_duration=30) -> bool:
 
 def display_video_and_faces(uploaded_file: st.runtime.uploaded_file_manager.UploadedFile):
     """Displays the uploaded video and extracted faces (title below video)."""
+
     st.markdown("---")
     st.header("Uploaded Video and Extracted Faces")
 
@@ -73,7 +101,7 @@ def display_video_and_faces(uploaded_file: st.runtime.uploaded_file_manager.Uplo
     # show extracted faces below 
     st.subheader("Extracted Faces")
 
-    faces_response = call_api_endpoint(FACES_ENDPOINT, uploaded_file, uploaded_file.name)
+    faces_response = call_api_endpoint(DISPLAY_FACES_ENDPOINT, uploaded_file, uploaded_file.name)
 
     if faces_response and faces_response.status_code == 200:
         st.components.v1.html(
@@ -82,11 +110,32 @@ def display_video_and_faces(uploaded_file: st.runtime.uploaded_file_manager.Uplo
             scrolling=True
         )
     elif faces_response is not None:
-        st.error(f"Error extracting faces (Status: {faces_response.status_code}): {faces_response.json().get('detail', 'Unknown error')}")
+        st.error(f"❌ Error extracting faces (Status: {faces_response.status_code}): {faces_response.json().get('detail', 'Unknown error')}")
+
+
+def download_boxes_and_faces(uploaded_file: st.runtime.uploaded_file_manager.UploadedFile, file_buffer: io.BytesIO):
+    """Creates a download link for a ZIP with faces and boxed frames."""
+
+    st.subheader("Download the Extracted Faces and Boxed Frames")
+
+    vid_name = uploaded_file.name
+    vid_name_no_ext = os.path.splitext(vid_name)[0]
+    download_response = call_api_endpoint(DOWNLOAD_FACES_ENDPOINT, file_buffer, vid_name)
+
+    if download_response and download_response.status_code == 200:
+        st.download_button(
+            label='⬇️ Download ZIP file',
+            data=download_response.content,
+            file_name=f'{vid_name_no_ext}_boxes_and_faces.zip',
+            mime='application/zip'
+        )
+    elif download_response is not None:
+        st.error(f"❌ Error generating the downloadable file (Status: {download_response.status_code}): {download_response.json().get('detail', 'Unknown error')}")
 
 
 def display_detection_results(detection_response: requests.Response, threshold: float):
     """Displays the deepfake detection results."""
+
     st.markdown("---")
     st.header("Deepfake Detection Results")
 
@@ -101,10 +150,10 @@ def display_detection_results(detection_response: requests.Response, threshold: 
     is_deepfake = data.get("is_deepfake", False)
 
     if is_deepfake:
-        st.error(f"## {summary}")
+        st.error(f"### {summary}")
         st.markdown("**This video is likely a Deepfake!**")
     else:
-        st.success(f"## {summary}")
+        st.success(f"### {summary}")
         st.markdown("**This video appears to be Authentic.**")
 
     st.metric(
@@ -150,13 +199,13 @@ def main():
 
     # 2. File uploader
     uploaded_file = st.file_uploader(
-        "Upload a video file (MP4 only, under 30 seconds)",
+        "Upload a video file (MP4 only, under 60 seconds)",
         type=["mp4"],
         key="video_uploader"
     )
 
     if uploaded_file is not None:
-        if not check_video_duration(uploaded_file, max_duration=30):
+        if not check_video_duration(uploaded_file, max_duration=60):
             st.stop()
 
         file_buffer = io.BytesIO(uploaded_file.getvalue())
@@ -167,7 +216,12 @@ def main():
             # 3. Display video + extracted faces
             display_video_and_faces(uploaded_file)
 
-            # 4. Deepfake detection
+            # 4. Download boxes and faces
+            file_buffer.seek(0)
+            download_boxes_and_faces(uploaded_file, file_buffer)
+
+            # 5. Deepfake detection
+            file_buffer.seek(0)
             detection_response = call_api_endpoint(DETECT_ENDPOINT, file_buffer, uploaded_file.name)
 
             if detection_response and detection_response.status_code == 200:
