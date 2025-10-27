@@ -23,3 +23,4 @@ FastAPI
 python-multipart
 uvloop>=0.14.0
 streamlit
+ruff

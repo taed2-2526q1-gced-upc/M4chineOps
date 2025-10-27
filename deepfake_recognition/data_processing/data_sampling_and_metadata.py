@@ -1,10 +1,10 @@
 import os
+import random
 import shutil
 import time
 
-import pandas as pd
-import random
 import cv2
+import pandas as pd
 
 import deepfake_recognition.config as cfg
 

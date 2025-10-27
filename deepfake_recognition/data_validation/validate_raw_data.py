@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-import argparse, json, sys
+import argparse
+import json
 from pathlib import Path
+import sys
+
 import pandas as pd
 
 try:

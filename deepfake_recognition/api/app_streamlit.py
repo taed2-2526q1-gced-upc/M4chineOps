@@ -1,10 +1,10 @@
-import streamlit as st
-import requests
 import io
 import os
 import tempfile
-import cv2
 
+import cv2
+import requests
+import streamlit as st
 
 # 1. Configuration
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://nattech.fib.upc.edu:40410')

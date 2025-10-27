@@ -1,17 +1,21 @@
+from datetime import datetime
 import os
+import pickle
+
+from codecarbon import EmissionsTracker
+import mlflow
 import numpy as np
 import pandas as pd
-import pickle
-import mlflow
-
-from datetime import datetime
-from codecarbon import EmissionsTracker
-
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    roc_auc_score,
+)
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, recall_score, make_scorer, \
-                            confusion_matrix, classification_report
+from sklearn.preprocessing import StandardScaler
 
 import deepfake_recognition.config as cfg
 
@@ -152,7 +156,7 @@ def main():
         mlflow.log_metric('F1_Score', f1)
         mlflow.log_metric('ROC_AUC', roc)
         mlflow.log_metric('CV_ROC_AUC', best_cv_score)
-        print(f'Train+Val metrics logged successfully!')
+        print('Train+Val metrics logged successfully!')
 
     # save model + scaler + metrics
     results = {

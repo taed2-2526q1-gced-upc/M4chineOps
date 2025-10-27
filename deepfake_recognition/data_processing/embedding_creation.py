@@ -1,15 +1,15 @@
 import os
+
+from codecarbon import EmissionsTracker
 import cv2
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from codecarbon import EmissionsTracker
-
 import tensorflow as tf
 from tensorflow.keras.applications import Xception
 from tensorflow.keras.applications.xception import preprocess_input
 from tensorflow.keras.layers import GlobalAveragePooling2D
 from tensorflow.keras.models import Model
+from tqdm import tqdm
 
 import deepfake_recognition.config as cfg
 

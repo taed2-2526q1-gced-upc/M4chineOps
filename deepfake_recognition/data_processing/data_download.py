@@ -5,19 +5,19 @@ Example usage:
 """
 # -*- coding: utf-8 -*-
 import argparse
+import json
 import os
-import urllib
-import urllib.request
+from os.path import join
+import sys
 import tempfile
 import time
-import sys
-import json
-from tqdm import tqdm
-from os.path import join
-
-import time
 import urllib
+import urllib.request
+
+from tqdm import tqdm
+
 import deepfake_recognition.config as cfg
+
 
 def safe_urlretrieve(url, filename, retries=5, delay=5):
     for i in range(retries):
@@ -182,7 +182,7 @@ def main(args):
             if 'original_youtube_videos' in dataset:
                 # Here we download the original youtube videos zip file
                 print('Downloading original youtube videos.')
-                if not 'info' in dataset_path:
+                if 'info' not in dataset_path:
                     print('Please be patient, this may take a while (~40gb)')
                     suffix = ''
                 else:
@@ -232,7 +232,7 @@ def main(args):
             dataset_videos_url = args.base_url + '{}/{}/{}/'.format(
                 dataset_path, c_compression, c_type)
             dataset_mask_url = args.base_url + '{}/{}/videos/'.format(
-                dataset_path, 'masks', c_type)
+                dataset_path, 'masks', )
 
             if c_type == 'videos':
                 dataset_output_path = join(output_path, dataset_path, c_compression,

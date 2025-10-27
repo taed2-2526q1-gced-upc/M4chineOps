@@ -1,20 +1,29 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-import io, os, cv2, traceback, joblib
-import zipfile, tempfile
-import numpy as np
 import base64
+import io
+import os
+import tempfile
+import traceback
+import zipfile
 
+import cv2
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse, StreamingResponse
+import joblib
 from mtcnn import MTCNN
-
+import numpy as np
 from tensorflow.keras.applications import Xception
 from tensorflow.keras.layers import GlobalAveragePooling2D
 from tensorflow.keras.models import Model
 
-from fastapi.responses import HTMLResponse, StreamingResponse
-
-from deepfake_recognition.data_processing.data_preprocessing_inference import extract_and_save_face_paths, extract_face_frames
-from deepfake_recognition.data_processing.embedding_creation import preprocess_for_Xception, build_frame_embeddings
 import deepfake_recognition.config as cfg
+from deepfake_recognition.data_processing.data_preprocessing_inference import (
+    extract_and_save_face_paths,
+    extract_face_frames,
+)
+from deepfake_recognition.data_processing.embedding_creation import (
+    build_frame_embeddings,
+    preprocess_for_Xception,
+)
 
 # 1. Configuration 
 FRAMES_PER_VIDEO = cfg.FRAMES_PER_VIDEO

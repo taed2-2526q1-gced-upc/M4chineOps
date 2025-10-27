@@ -1,10 +1,11 @@
 import os
+
 import cv2
+from mtcnn import MTCNN
 import numpy as np
 
-from mtcnn import MTCNN
-
 import deepfake_recognition.config as cfg
+
 
 def extract_face_frames(filepath: str, detector: MTCNN, IMG_SIZE: tuple[int, int], k: int = 10) -> list[np.ndarray]:
     """
