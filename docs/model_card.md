@@ -1,24 +1,24 @@
 ---
 language:
 - en
-library_name: pytorch
+library_name: tensorflow
 tags:
 - computer-vision
 - classification
 - deepfake
 - video
-- transformer
-- videomae
+- cnn
+- xception
 datasets:
 - FaceForensics++
 metrics:
 - accuracy
 - f1
 - auc
-base_model: VideoMAE
+base_model: Xception
 
 model-index:
-- name: Deepfake Detection
+- name: Deepfake Detection (Xception + Logistic Regression)
   results:
   - task:
       type: video-classification
@@ -41,24 +41,22 @@ model-index:
 
 ---
 
-# Model Card for Deepfake Detection
+# Model Card for Deepfake Detection (Xception + Logistic Regression)
 
 ## Model Details
 
 ### Model Description
 
-The developed model is based on **VideoMAE**, a Vision Transformer architecture specifically adapted for **spatio-temporal video understanding**. Unlike traditional CNNs such as Xception, VideoMAE processes **video patches** (spatial + temporal), allowing it to jointly capture both visual appearance and motion dynamics.  
+The developed model is a **hybrid deepfake detection system** that combines **Xception** for visual feature extraction with a **Logistic Regression classifier** for final **frame-level prediction**.  
+Instead of aggregating embeddings to represent each video globally, the model generates **one embedding per detected face frame** (10 frames per video). Each frame embedding is treated as an independent sample for training and evaluation.
 
-- **Backbone:** VideoMAE initialized with pre-trained weights from **Kinetics-400**, a large-scale human action dataset.  
-- **Adaptation for binary classification:**  
-  - The original classification head (400 classes) was replaced with a **fully connected layer with 2 outputs** (real vs fake).  
-  - This setup leverages pre-trained spatio-temporal representations while fine-tuning for deepfake detection.  
-- **Input representation:** Videos are divided into groups of **16 consecutive frames**, each resized to **224×224 pixels**, ensuring compatibility with the VideoMAE backbone and enabling temporal learning within short sequences.  
-- **Training setup:**  
-  - Optimizer: Adam  
-  - Loss: Binary Cross-Entropy  
-  - Regularization: dropout and early stopping  
-  - Transfer learning strategy: backbone fine-tuning  
+- **Backbone:** Xception pretrained on **ImageNet**, used as a frozen feature extractor (`include_top=False`) with **GlobalAveragePooling2D**.  
+- **Embeddings per frame:** 2048-dimensional vector representing each detected face.  
+- **Frame sampling:** 10 frames per video, uniformly distributed.  
+- **Classifier:** Scikit-learn **Logistic Regression**, trained on frame-level embeddings using **GridSearchCV** for hyperparameter tuning (penalty, solver, C, l1_ratio).  
+- **Input representation:** Frames resized to 299×299 and normalized with Xception preprocessing.  
+- **Scaling:** StandardScaler fitted on training and validation embeddings.  
+- **Tracking and reproducibility:** MLflow for experiment logging; CodeCarbon for emission tracking.  
 
 - **Developed by:** M4chineOps (Maite Blasi, Maria Gestí, Martina Massana, Maria Sans)  
 - **Project:** TAED2_M4chineOps – Deepfake Recognition  
@@ -70,33 +68,25 @@ The developed model is based on **VideoMAE**, a Vision Transformer architecture 
 
 ### Direct Use
 
-- **Research and academic study** of video-based deepfake detection.  
-- **Benchmarking** deepfake detection performance on FaceForensics++.  
-- **Educational purposes**, particularly for demonstrating spatio-temporal modeling with Vision Transformers.  
-
-### Out-of-Scope Use
-
-This model is **not recommended** for high-stakes or real-world forensic use cases, such as:  
-
-- **Detection of novel or advanced deepfake methods** not included in FaceForensics++.  
-- **Analysis of low-quality or highly compressed content**, which may degrade accuracy.  
-- **Deployment on uncontrolled video sources** (TikTok, Instagram, messaging platforms) without retraining on relevant datasets.  
+- **Research** on interpretable and efficient deepfake detection pipelines at the frame level.  
+- **Benchmarking** hybrid architectures combining CNN embeddings with classical ML classifiers.  
+- **Educational purposes** to demonstrate transferable CNN features in deepfake detection.  
 
 ---
 
 ## Bias, Risks, and Limitations
 
-- Performance is limited to **FaceForensics++ manipulation techniques** and may not generalize well to unseen methods.  
-- **Dataset bias:** trained on YouTube-like videos → may struggle with other platforms.  
-- **False positives:** risk of mislabeling real content as fake.  
-- **False negatives:** risk of missing sophisticated or unseen deepfakes.  
-- Sensitive to **resolution and compression artifacts**.  
+- **Dataset bias:** trained solely on FaceForensics++ (YouTube-style videos), may not generalize to other platforms or compression levels.  
+- **Loss of temporal information:** as each frame is classified independently, the model does not capture motion or consistency across frames.  
+- **Face detection dependency:** relies on MTCNN; missed or incorrect detections reduce model robustness.  
+- **Potential demographic bias:** model performance may vary across age, ethnicity, and gender groups.  
+- **Risk of false positives/negatives:** typical in deepfake detection; requires threshold tuning for reliable operation.  
 
 ### Recommendations
 
-- Use only in **controlled experimental setups**, not as a forensic decision-making tool.  
-- Retrain periodically with **newer datasets** reflecting emerging deepfake generation techniques.  
-- Combine with **multimodal approaches** (audio, metadata, physiological cues) for higher reliability.  
+- Retrain or fine-tune the Logistic Regression classifier with domain-specific data before deployment.  
+- Combine with temporal, audio, or metadata-based features for improved robustness.  
+- Use human review for any critical decision; do not rely solely on model predictions.  
 
 ---
 
@@ -104,33 +94,36 @@ This model is **not recommended** for high-stakes or real-world forensic use cas
 
 ### Training Data
 
-Dataset: **FaceForensics++**  
-- Contains original and manipulated YouTube-based videos.  
-- Training/validation/testing splits applied.  
+Dataset: **FaceForensics++ (original)**  
+- Contains both authentic and manipulated videos.  
+- Balanced sampling ensured by internal preprocessing scripts (`data_sampling_and_metadata.py`).  
 
 For more details: [Dataset Card](https://github.com/taed2-2526q1-gced-upc/M4chineOps/blob/main/docs/dataset_card.md)  
 
 #### Preprocessing
 
-- Videos split into **16-frame clips**.  
-- Frames resized to **224×224 pixels**.  
-- Organized into DVC-tracked folders with metadata (filepath, label, frames, resolution).  
+- **Face extraction:** using **MTCNN** (`extract_face_frames()` and `extract_and_save_face_paths()`).  
+- **Frame sampling:** uniform selection of 10 frames per video.  
+- **Image size:** resized to 299×299 pixels for Xception input.  
+- **Embedding generation:** Xception + `GlobalAveragePooling2D`, producing a 2048-dimensional feature vector per frame.  
 
 ### Training Procedure
 
-- **Base model:** VideoMAE (pretrained on Kinetics-400).  
-- **Classifier head:** replaced with 2-class dense layer.  
-- **Frozen layers:** initial fine-tuning with frozen backbone, then gradual unfreezing.  
-- **Optimizer:** Adam.  
-- **Loss:** Binary Cross-Entropy.  
-- **Regularization:** dropout + early stopping.  
-- **Metrics:** Accuracy, F1-score, AUC.  
+- **Base model:** Xception (`weights='imagenet'`, `include_top=False`).  
+- **Feature dimension:** 2048 per frame.  
+- **Classifier:** Logistic Regression with **GridSearchCV** (`scoring='roc_auc'`).  
+- **Scaler:** StandardScaler fitted on train+val embeddings.  
+- **Metrics:** Accuracy, F1-score, ROC-AUC.  
+- **Tracking:** MLflow for experiment logging, CodeCarbon for emission tracking.  
 
 #### Training Hyperparameters
 
-- Batch size: 32/64  
-- Epochs: 20–30  
-- Learning rate: 1e-4 with decay  
+- Penalty: `['l2', 'elasticnet']`  
+- Solvers: `['saga', 'lbfgs']`  
+- C: `[0.01, 0.1, 1, 10]`  
+- l1_ratio: `[0.3, 0.5, 0.7]` (for elasticnet)  
+- Max iterations: `3000`  
+- Frames per video: `10`  
 
 ---
 
@@ -139,55 +132,60 @@ For more details: [Dataset Card](https://github.com/taed2-2526q1-gced-upc/M4chin
 ### Testing Data
 
 Dataset: **FaceForensics++ (test split)**  
-More info: [Dataset Card](https://github.com/taed2-2526q1-gced-upc/M4chineOps/blob/main/docs/dataset_card.md)  
+For further details: [Dataset Card](https://github.com/taed2-2526q1-gced-upc/M4chineOps/blob/main/docs/dataset_card.md)  
 
 ### Factors
 
-- Video compression level.  
-- Manipulation method (specific FaceForensics++ manipulation types).  
-- Frame quality and resolution.  
+- Compression level and manipulation type.  
+- Accuracy of detected face crops.  
+- Frame sampling variability.  
 
 ### Metrics
 
-Three main metrics are used to evaluate the model: **Accuracy**, **F1-score**, and **AUC**. Each provides complementary information about performance, especially considering the challenges of class imbalance and the risks of false positives/negatives in deepfake detection.  
+Three main metrics are used to evaluate the model: **Accuracy**, **F1-score**, and **AUC**. Each provides complementary information about performance, especially considering class imbalance and the potential consequences of misclassification.  
 
 - **Accuracy**  
-  Measures the overall proportion of correctly classified samples (both real and fake).  
+  Measures the overall proportion of correctly classified frames (both real and fake).  
   
   Accuracy = (TP + TN) / (TP + TN + FP + FN)
 
-  While accuracy gives a quick sense of performance, it can be misleading in imbalanced datasets, where one class dominates. 
+  While accuracy provides a general sense of model performance, it may not fully capture performance in imbalanced scenarios.  
 
 - **F1-score**  
   The harmonic mean of **precision** and **recall**. 
    
   F1 = 2 * (Precision * Recall) / (Precision + Recall)
 
-  This metric is especially important in deepfake detection because:  
-  - High **precision** ensures few real videos are wrongly flagged as fake (avoiding false accusations).  
-  - High **recall** ensures most fake videos are correctly detected (avoiding undetected misinformation).  
-  A balanced F1-score indicates that the model handles both errors fairly well.  
+  This metric is critical for deepfake detection because:  
+  - High **precision** reduces false accusations (real videos wrongly flagged as fake).  
+  - High **recall** ensures detection of most fake frames (avoiding undetected manipulations).  
+  A balanced F1-score indicates good performance on both dimensions.  
 
 - **AUC**  
-  Evaluates the trade-off between **True Positive Rate (TPR)** and **False Positive Rate (FPR)** across different thresholds.  
-  - AUC close to **1.0** means the model separates well between real and fake videos.  
-  - AUC around **0.5** means performance is no better than random guessing.  
-  This is a robust metric in binary classification tasks, particularly when the decision threshold may vary depending on application. 
+  Measures the trade-off between **True Positive Rate (TPR)** and **False Positive Rate (FPR)** across thresholds.  
+  - AUC near **1.0** implies good separation between real and fake frames.  
+  - AUC near **0.5** implies performance close to random guessing.  
+  This metric is particularly valuable when decision thresholds may vary depending on deployment context.  
 
 ### Results
 
-[More Information Needed]
+Results are tracked and visualized via MLflow.  
+All model metrics, hyperparameters, and artifacts are logged automatically, ensuring full reproducibility and traceability of the experiments.
 
-#### Summary
+---
 
-The VideoMAE-based model shows strong potential for deepfake recognition by leveraging spatio-temporal features, but requires careful retraining and multimodal complementarity for practical deployment.  
+## Summary
+
+The **Xception + Logistic Regression** model provides a **lightweight, interpretable**, and **efficient** solution for deepfake detection.  
+It achieves competitive results on FaceForensics++ using only frame-level information.  
+However, due to the absence of temporal modeling, it should be retrained or fine-tuned before being used in real-world or cross-dataset scenarios.
 
 ---
 
 ## Model Card Authors
 
-M4chineOps Team: Maite Blasi, Maria Gestí, Martina Massana, Maria Sans  
+**M4chineOps Team:** Maite Blasi, Maria Gestí, Martina Massana, Maria Sans  
 
 ## Model Card Contact
 
-m4chineops@gmail.com  
+📩 **m4chineops@gmail.com**
