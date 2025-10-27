@@ -1,0 +1,207 @@
+M4chineOps — Ejemplos detallados de cambios (ANTES vs. DESPUÉS)
+================================================================
+
+Este documento muestra ejemplos concretos de cómo quedaron los archivos tras aplicar Ruff
+y los fixes manuales/compatibilidad.
+
+Índice
+------
+1) E722: bare `except`
+2) E701/E702: múltiples sentencias en una línea
+3) E741: nombres ambiguos
+4) Fix manual: URL en data_download.py
+5) Serialización GE: ExpectationSuiteValidationResult
+6) Ajustes de mensajes y logs
+7) Mini guía de uso (comandos)
+
+----------------------------------------------------------------
+1) E722 — bare `except`
+----------------------------------------------------------------
+
+Archivo: deepfake_recognition/data_processing/data_preprocessing_inference.py
+
+ANTES
+-----
+try:
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    face_frames.append(frame)
+except:
+    print('Appending empty frame due to read error.')
+    empty_frame = np.zeros((IMG_SIZE[0], IMG_SIZE[1], 3), dtype=np.uint8)
+    face_frames.append(empty_frame)
+
+DESPUÉS
+-------
+try:
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    face_frames.append(frame)
+except Exception as e:
+    print(f'Appending empty frame due to read error: {e}')
+    empty_frame = np.zeros((IMG_SIZE[0], IMG_SIZE[1], 3), dtype=np.uint8)
+    face_frames.append(empty_frame)
+
+
+Archivo: deepfake_recognition/data_processing/embedding_creation.py
+
+ANTES
+-----
+try:
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frames.append(frame)
+except:
+    print('Appending empty frame due to read error.')
+    empty_frame = np.zeros((IMG_SIZE[0], IMG_SIZE[1], 3), dtype=np.uint8)
+    frames.append(empty_frame)
+
+DESPUÉS
+-------
+try:
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frames.append(frame)
+except Exception as e:
+    print(f'Appending empty frame due to read error: {e}')
+    empty_frame = np.zeros((IMG_SIZE[0], IMG_SIZE[1], 3), dtype=np.uint8)
+    frames.append(empty_frame)
+
+
+----------------------------------------------------------------
+2) E701/E702 — varias sentencias en una línea
+----------------------------------------------------------------
+
+Archivo: deepfake_recognition/ge_validate.py
+
+ANTES
+-----
+if not d.exists(): die(f"No existe {d}.")
+T = "expect_column_to_exist"; N = "expect_column_values_to_not_be_null"
+
+DESPUÉS
+-------
+if not d.exists():
+    die(f"No existe {d}.")
+
+T = "expect_column_to_exist"
+N = "expect_column_values_to_not_be_null"
+
+
+ANTES
+-----
+if not res.get("success", False): die("RAW validation FAILED (data/validation/raw_result.json)")
+
+DESPUÉS
+-------
+if not res.get("success", False):
+    die("RAW validation FAILED (data/validation/raw_result.json)")
+
+
+----------------------------------------------------------------
+3) E741 — nombres ambiguos
+----------------------------------------------------------------
+
+Archivo: deepfake_recognition/matadata.py
+
+ANTES
+-----
+O = "expect_column_values_to_be_of_type"
+
+DESPUÉS
+-------
+EXPECT_TYPE = "expect_column_values_to_be_of_type"
+
+
+----------------------------------------------------------------
+4) Fix manual — data_download.py (URL de masks)
+----------------------------------------------------------------
+
+ANTES (auto-fix incompleto / roto)
+----------------------------------
+dataset_mask_url = args.base_url + "{}/{}/videos/".format(dataset_path, "masks", )
+
+DESPUÉS (opción A — masks/videos)
+---------------------------------
+dataset_mask_url = args.base_url + "{}/{}/videos/".format(dataset_path, "masks")
+# f-string:
+# dataset_mask_url = f"{args.base_url}/{dataset_path}/masks/videos/"
+
+DESPUÉS (opción B — masks/{c_type})
+-----------------------------------
+dataset_mask_url = args.base_url + "{}/{}/{}/".format(dataset_path, "masks", c_type)
+# f-string:
+# dataset_mask_url = f"{args.base_url}/{dataset_path}/masks/{c_type}/"
+
+
+----------------------------------------------------------------
+5) Serialización GE — ExpectationSuiteValidationResult
+----------------------------------------------------------------
+
+Archivo: deepfake_recognition/raw_data.py (análogo en matadata.py)
+
+ANTES
+-----
+res = run_ge(df, exps_raw(), out)
+jdump(res, out_json)
+
+DESPUÉS
+-------
+res = run_ge(df, exps_raw(), out)
+try:
+    res = res.to_json_dict()
+except Exception:
+    pass
+jdump(res, out_json)
+
+Comprobación de éxito robusta (dict u objeto):
+----------------------------------------------
+success = res.get('success', False) if isinstance(res, dict) else getattr(res, 'success', False)
+if not success:
+    die("RAW validation FAILED (data/validation/raw_result.json)")
+
+
+----------------------------------------------------------------
+6) Ajustes de mensajes y logs (consistencia)
+----------------------------------------------------------------
+
+- Mensajes en inglés/español unificados (según archivo).
+- Prefijo estándar para GE:
+    [GE] RAW validation PASSED / FAILED
+    [GE] Metadata validation PASSED / FAILED
+- Rutas de salida consolidadas en: data/validation/*.json
+
+
+----------------------------------------------------------------
+7) Mini guía de uso
+----------------------------------------------------------------
+
+Instalación (venv + deps)
+-------------------------
+python -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
+
+Ruff (lint + format)
+--------------------
+ruff check . --diff
+ruff check . --fix
+ruff format .
+
+Validaciones mínimas
+--------------------
+mkdir -p data/raw/real data/raw/fake data/metadata data/validation
+printf . > data/raw/real/video1.mp4
+printf . > data/raw/fake/fake1.mp4
+python - <<'PYX'
+import pandas as pd
+pd.DataFrame([
+    {"filename":"video1.mp4","split":"train","label":"real"},
+    {"filename":"fake1.mp4","split":"train","label":"fake"},
+]).to_csv("data/metadata/metadata.csv", index=False)
+print("metadata.csv creado")
+PYX
+python -m deepfake_recognition.raw_data --data-dir data --min-per-class 1
+python -m deepfake_recognition.matadata --data-dir data
+
+Resultados esperados
+--------------------
+[GE] RAW validation PASSED
+[GE] Metadata validation PASSED
