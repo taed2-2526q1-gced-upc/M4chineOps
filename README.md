@@ -15,52 +15,71 @@ Deepfake Video Detection System
 ## Project Organization
 
 ```
-├── LICENSE            <- Open-source license if one is chosen
+├── .dvc/                      <- DVC directory for data version control
+│
+├── data/                      <- Project data folder
+│
+├── data_processing/ 
+│
+├── deepfake_recognition/       <- Main package source code
+│   │
+│   ├── api/                    <- API and Streamlit app
+│   │   ├── __init__.py
+│   │   ├── api.py
+│   │   └── app_streamlit.py
+│   │
+│   ├── data_processing/        <- Scripts for data preprocessing and metadata generation
+│   │   ├── __init__.py
+│   │   ├── data_download.py
+│   │   ├── data_preprocessing_inference.py
+│   │   ├── data_sampling_and_metadata.py
+│   │   └── embedding_creation.py
+│   │
+│   ├── modeling/               <- Model training
+│   │   ├── __init__.py
+│   │   ├── logreg_model.pkl    <- Trained model
+│   │   └── model_training.py
+│   │
+│   ├── __init__.py
+│   ├── config.py               <- Configuration file
+│   └── ge_validate.py 
+│
+├── docs/
+│   ├── README.md
+│   ├── dataset_card.md
+│   ├── mkdocs.yml
+│   └── model_card.md
+│
+├── emissions/
+│   ├── emissions.csv
+│   └── read_emissions.ipynb
+│
+├── references/
+│
+├── reports/
+│
+├── tests/                      <- Unit tests for each module
+│   ├── test_api.py
+│   ├── test_app_streamlit.py
+│   ├── test_config.py
+│   ├── test_data_download.py
+│   ├── test_data_preprocessing_inference.py
+│   ├── test_data_sampling_and_metadata.py
+│   ├── test_embedding_creation.py
+│   └── test_model_training.py
+│
 ├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
+│
 ├── README.md          <- The top-level README for developers using this project.
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
 │
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
+├── dvc.lock
 │
-├── models             <- Trained and serialized models, model predictions, or model summaries
+├── dvc.yaml
 │
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
+├── pyproject.toml
 │
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         deepfake_recognition and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
-└── deepfake_recognition   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes deepfake_recognition a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── plots.py                <- Code to create visualizations
+└── requirements.txt
+
 ```
 
 --------

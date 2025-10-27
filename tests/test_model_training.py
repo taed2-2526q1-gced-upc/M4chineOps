@@ -59,9 +59,9 @@ def test_main_reads_data_and_calls_tune(monkeypatch, tmp_path):
     """Main function should read CSVs and call tune_hyperparameters once."""
 
     fake_df = pd.DataFrame({
-        'e0': np.random.rand(5),
-        'e1': np.random.rand(5),
-        'label': np.random.choice(['real', 'fake'], 5)
+        'e0': [0.1, 0.2, 0.3],
+        'e1': [1.0, 1.1, 1.2],
+        'label': ['real', 'fake', 'real']
     })
 
     # Mock pd.read_csv to always return fake_df for embedding/data files
