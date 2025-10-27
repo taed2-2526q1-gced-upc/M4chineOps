@@ -22,3 +22,4 @@ great-expectations>=0.18
 FastAPI
 python-multipart
 uvloop>=0.14.0
+streamlit

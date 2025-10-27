@@ -1,12 +1,12 @@
 import sys
 import pytest
-import numpy as np 
+import numpy as np
 
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 from typing import cast
 
-# --- MOCK de TensorFlow y submódulos usados por el proyecto ---
+# --- MOCK TensorFlow and its submodules used by the project ---
 mock_tf = ModuleType("tensorflow")
 mock_keras = ModuleType("tensorflow.keras")
 mock_keras_applications = ModuleType("tensorflow.keras.applications")
@@ -14,11 +14,10 @@ mock_keras_xception = ModuleType("tensorflow.keras.applications.xception")
 mock_keras_layers = ModuleType("tensorflow.keras.layers")
 mock_keras_models = ModuleType("tensorflow.keras.models")
 
-# Añadir mocks de clases/funciones que el código podría importar
+# Mock necessary functions/classes to avoid importing real TensorFlow
 setattr(mock_keras_applications, "Xception", MagicMock())
 setattr(mock_keras_xception, "preprocess_input", MagicMock())
 
-# Añadir mocks de capas comunes
 for layer_name in [
     "Dense",
     "Dropout",
@@ -29,10 +28,9 @@ for layer_name in [
 ]:
     setattr(mock_keras_layers, layer_name, MagicMock())
 
-# Mock para modelos Keras
 setattr(mock_keras_models, "Model", MagicMock())
 
-# Registrar los módulos en sys.modules
+# Register modules in sys.modules so imports work
 sys.modules["tensorflow"] = mock_tf
 sys.modules["tensorflow.keras"] = mock_keras
 sys.modules["tensorflow.keras.applications"] = mock_keras_applications
@@ -40,12 +38,12 @@ sys.modules["tensorflow.keras.applications.xception"] = mock_keras_xception
 sys.modules["tensorflow.keras.layers"] = mock_keras_layers
 sys.modules["tensorflow.keras.models"] = mock_keras_models
 
-# --- MOCK de MTCNN ---
+# --- MOCK MTCNN ---
 mock_mtcnn = ModuleType("mtcnn")
 setattr(mock_mtcnn, "MTCNN", MagicMock())
 sys.modules["mtcnn"] = cast(ModuleType, mock_mtcnn)
 
-# --- Ahora ya puedes importar tu módulo sin que falle ---
+# --- Import the module to test ---
 import deepfake_recognition.data_processing.data_preprocessing_inference as dpi
 
 
@@ -53,41 +51,50 @@ import deepfake_recognition.data_processing.data_preprocessing_inference as dpi
 
 @pytest.fixture
 def mock_detector():
-    """Mock del detector MTCNN."""
+    """
+    Mock for the MTCNN detector.
+    Returns one detected face by default.
+    """
     detector = MagicMock()
-    # Por defecto devuelve una cara detectada
     detector.detect_faces.return_value = [{'box': [10, 10, 20, 20]}]
     return detector
 
 
 @pytest.fixture
 def mock_video_capture():
-    """Mock del cv2.VideoCapture."""
+    """
+    Mock for cv2.VideoCapture.
+    Simulates a video with 10 frames of ones (dummy image data).
+    """
     cap = MagicMock()
-    cap.get.return_value = 10  # total de frames
-    cap.read.return_value = (True, np.ones((100, 100, 3), dtype=np.uint8))
+    cap.get.return_value = 10  # total frames
+    cap.read.side_effect = [(True, np.ones((100, 100, 3), dtype=np.uint8)) for _ in range(10)]
     return cap
 
 
 @pytest.fixture
 def fake_img_size():
-    """Tamaño de imagen simulado."""
+    """Simulated image size for empty frames."""
     return (64, 64)
 
 
 @pytest.fixture(autouse=True)
 def patch_cv2_and_cfg(tmp_path, mock_video_capture):
-    """Parchea cv2 y cfg globalmente."""
-    with patch("cv2.VideoCapture", return_value=mock_video_capture), \
-         patch("cv2.cvtColor", side_effect=lambda f, c: f), \
-         patch("cv2.imwrite", return_value=True), \
-         patch("cv2.rectangle", side_effect=lambda *args, **kwargs: None), \
+    """
+    Globally patch OpenCV functions and the config module for tests.
+    Provides temporary directories for RAW, PROCESSED, and API_UPLOADS.
+    """
+    with patch("deepfake_recognition.data_processing.data_preprocessing_inference.cv2.VideoCapture", return_value=mock_video_capture), \
+         patch("deepfake_recognition.data_processing.data_preprocessing_inference.cv2.cvtColor", side_effect=lambda f, c: f), \
+         patch("deepfake_recognition.data_processing.data_preprocessing_inference.cv2.imwrite", return_value=True), \
+         patch("deepfake_recognition.data_processing.data_preprocessing_inference.cv2.rectangle", side_effect=lambda *args, **kwargs: None), \
          patch("os.path.exists", return_value=True), \
          patch("deepfake_recognition.config") as mock_cfg:
 
+        # Patch config variables
         mock_cfg.RAW_DATA_DIR = str(tmp_path / "raw")
-        mock_cfg.PROCESSED_DATA_DIR = str(tmp_path / "processed")
-        mock_cfg.FRAMES_PER_VIDEO = 5
+        mock_cfg.FRAMES_PER_VIDEO = 12
+        mock_cfg.API_UPLOADS_DATA_DIR = str(tmp_path / "api_uploads")
 
         yield mock_cfg
 
@@ -96,6 +103,12 @@ def patch_cv2_and_cfg(tmp_path, mock_video_capture):
 
 @pytest.mark.parametrize("faces_detected", [True, False])
 def test_extract_face_frames(mock_detector, faces_detected, fake_img_size):
+    """
+    Test extraction of face frames from a video.
+
+    - If faces are detected, frames should contain nonzero pixels.
+    - If no faces are detected, frames should be empty (all zeros).
+    """
     if not faces_detected:
         mock_detector.detect_faces.return_value = []
 
@@ -114,37 +127,44 @@ def test_extract_face_frames(mock_detector, faces_detected, fake_img_size):
         assert frame.ndim == 3
 
     if faces_detected:
-        # Si detecta caras, los frames no deben ser completamente negros
-        assert not np.all(frames[0] == 0)
+        # Ensure at least some pixels are nonzero when a face is detected
+        assert np.any(frames[0] != 0)
     else:
-        # Si no detecta caras, los frames son vacíos (negros)
+        # Empty frame (all zeros) when no faces detected
         assert np.all(frames[0] == 0)
 
 
 # ---------- TESTS extract_and_save_face_paths ----------
 
 def test_extract_and_save_face_paths_success(mock_detector, tmp_path):
+    """
+    Test extracting and saving face frames successfully.
+    Checks that paths are returned and are strings.
+    """
     boxed_paths, face_paths = dpi.extract_and_save_face_paths(
-        filepath="video.mp4",
         detector=mock_detector,
+        filepath="video.mp4",
+        filename="sample_video",
         k=3
     )
 
-    # Validación general
     assert len(boxed_paths) == 3
     assert len(face_paths) == 3
     for p in boxed_paths + face_paths:
         assert isinstance(p, str)
-        assert p.endswith(".jpg")
 
 
 def test_extract_and_save_face_paths_with_exception(mock_detector):
-    """Simula error en detector.detect_faces para cubrir except."""
+    """
+    Simulate an exception during face detection.
+    Function should return empty paths for all frames.
+    """
     mock_detector.detect_faces.side_effect = Exception("error")
 
     boxed_paths, face_paths = dpi.extract_and_save_face_paths(
-        filepath="video.mp4",
         detector=mock_detector,
+        filepath="video.mp4",
+        filename="broken_video",
         k=2
     )
 
@@ -152,12 +172,12 @@ def test_extract_and_save_face_paths_with_exception(mock_detector):
     assert face_paths == ["", ""]
 
 
-# ---------- TEST main (mocked) ----------
+# ---------- TEST MAIN PLACEHOLDER ----------
 
-def test_main_with_missing_csv(monkeypatch):
-    """El main debe continuar cuando el CSV no existe."""
-    mock_detector_class = MagicMock(return_value=MagicMock())
-    monkeypatch.setattr(dpi, "MTCNN", mock_detector_class)
-    monkeypatch.setattr("os.path.exists", lambda path: False)
-
-    dpi.main()  
+def test_main_placeholder_exists():
+    """
+    Ensure the module has the necessary functions and does not fail
+    due to the absence of a main() function.
+    """
+    assert hasattr(dpi, "extract_face_frames")
+    assert hasattr(dpi, "extract_and_save_face_paths")

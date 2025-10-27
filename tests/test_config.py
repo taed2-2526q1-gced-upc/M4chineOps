@@ -25,13 +25,12 @@ def test_data_directories_defined(reload_config_module):
     expected_dirs = [
         config.GLOBAL_DATA_DIR,
         config.RAW_DATA_DIR,
-        config.PROCESSED_DATA_DIR,
         config.SAMPLED_OUTPUT_DIR,
         config.METADATA_DIR,
         config.EMBEDDING_DIR,
         config.MODELS_DIR,
         config.EMISSIONS_OUTPUT_DIR,
-        config.API_UPLOADS_DIR
+        config.API_UPLOADS_DATA_DIR
     ]
     for d in expected_dirs:
         assert isinstance(d, Path), f"{d} is not a Path object"
