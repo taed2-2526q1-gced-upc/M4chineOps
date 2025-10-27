@@ -5,7 +5,7 @@ import pytest
 
 @pytest.fixture
 def reload_config_module():
-    """Reloads config.py cleanly for each test."""
+    """Reloads config.py fresh for each test to ensure no cached values."""
     if "deepfake_recognition.config" in sys.modules:
         del sys.modules["deepfake_recognition.config"]
     import deepfake_recognition.config as config
@@ -13,15 +13,14 @@ def reload_config_module():
 
 
 def test_proj_root_is_valid(reload_config_module):
-    """Checks that PROJ_ROOT is a valid directory path."""
+    """Ensures that PROJ_ROOT points to a valid directory."""
     config = reload_config_module
     assert isinstance(config.PROJ_ROOT, Path)
-    # The project root should exist or be creatable
-    assert config.PROJ_ROOT.exists()
+    assert config.PROJ_ROOT.exists()  # should exist or be creatable
 
 
 def test_data_directories_defined(reload_config_module):
-    """Ensures all expected data directories are Path objects."""
+    """Checks that all key data directories are defined as Path objects."""
     config = reload_config_module
     expected_dirs = [
         config.GLOBAL_DATA_DIR,
@@ -39,7 +38,7 @@ def test_data_directories_defined(reload_config_module):
 
 
 def test_constants_have_expected_types(reload_config_module):
-    """Validates that key constants have correct data types."""
+    """Verifies that main constants have the correct data types and valid ranges."""
     cfg = reload_config_module
     assert isinstance(cfg.N_SAMPLES_PER_CLASS, int)
     assert isinstance(cfg.SIZE_FOR_XCEPTION, tuple)
@@ -50,17 +49,15 @@ def test_constants_have_expected_types(reload_config_module):
 
 
 def test_logger_initialization_does_not_fail(reload_config_module):
-    """Ensures the Loguru logger is correctly set up."""
+    """Ensures that the Loguru logger is properly initialized and functional."""
     cfg = reload_config_module
     cfg.logger.info("Test message from config")
-    # No exceptions should occur — just verifying it logs successfully
     assert hasattr(cfg.logger, "info")
     assert callable(cfg.logger.info)
 
 
 def test_tqdm_integration_graceful(monkeypatch):
-    """Ensures config handles missing tqdm gracefully."""
-    # Simulate tqdm not being installed
+    """Simulates a missing tqdm module and verifies config still imports cleanly."""
     sys_modules_backup = sys.modules.copy()
     sys.modules["tqdm"] = None
 
@@ -68,6 +65,6 @@ def test_tqdm_integration_graceful(monkeypatch):
         if "deepfake_recognition.config" in sys.modules:
             del sys.modules["deepfake_recognition.config"]
         import deepfake_recognition.config as config
-        assert True  # Should import successfully
+        assert True  # should import successfully
     finally:
         sys.modules = sys_modules_backup

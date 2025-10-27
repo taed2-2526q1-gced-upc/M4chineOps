@@ -4,15 +4,15 @@ import numpy as np
 from unittest.mock import MagicMock, patch
 import cv2
 
-import deepfake_recognition.app_streamlit as app
+import deepfake_recognition.api.app_streamlit as app
 
 
 # ------------------------------
 #  check_api_health
 # ------------------------------
 
-@patch("deepfake_recognition.app_streamlit.requests.get")
-@patch("deepfake_recognition.app_streamlit.st")
+@patch("deepfake_recognition.api.app_streamlit.requests.get")
+@patch("deepfake_recognition.api.app_streamlit.st")
 def test_check_api_health_success(mock_st, mock_get):
     """Tests successful API health check returning JSON."""
     mock_get.return_value.json.return_value = {"status": "ok"}
@@ -24,8 +24,8 @@ def test_check_api_health_success(mock_st, mock_get):
     mock_st.stop.assert_not_called()
 
 
-@patch("deepfake_recognition.app_streamlit.requests.get")
-@patch("deepfake_recognition.app_streamlit.st")
+@patch("deepfake_recognition.api.app_streamlit.requests.get")
+@patch("deepfake_recognition.api.app_streamlit.st")
 def test_check_api_health_failure(mock_st, mock_get):
     """Tests failed API health check raising a RequestException."""
     from requests.exceptions import RequestException
@@ -41,8 +41,8 @@ def test_check_api_health_failure(mock_st, mock_get):
 #  call_api_endpoint
 # ------------------------------
 
-@patch("deepfake_recognition.app_streamlit.requests.post")
-@patch("deepfake_recognition.app_streamlit.st.spinner")
+@patch("deepfake_recognition.api.app_streamlit.requests.post")
+@patch("deepfake_recognition.api.app_streamlit.st.spinner")
 def test_call_api_endpoint_success(mock_spinner, mock_post):
     """Tests successful POST call to API endpoint."""
     fake_response = MagicMock(status_code=200)
@@ -55,8 +55,8 @@ def test_call_api_endpoint_success(mock_spinner, mock_post):
     mock_post.assert_called_once()
 
 
-@patch("deepfake_recognition.app_streamlit.requests.post")
-@patch("deepfake_recognition.app_streamlit.st")
+@patch("deepfake_recognition.api.app_streamlit.requests.post")
+@patch("deepfake_recognition.api.app_streamlit.st")
 def test_call_api_endpoint_request_exception(mock_st, mock_post):
     """Tests failed API request returning None."""
     from requests.exceptions import RequestException
@@ -73,8 +73,8 @@ def test_call_api_endpoint_request_exception(mock_st, mock_post):
 #  check_video_duration
 # ------------------------------
 
-@patch("deepfake_recognition.app_streamlit.cv2.VideoCapture")
-@patch("deepfake_recognition.app_streamlit.st")
+@patch("deepfake_recognition.api.app_streamlit.cv2.VideoCapture")
+@patch("deepfake_recognition.api.app_streamlit.st")
 def test_check_video_duration_under_limit(mock_st, mock_cv):
     """Tests that short videos pass duration check."""
     cap = MagicMock()
@@ -88,8 +88,8 @@ def test_check_video_duration_under_limit(mock_st, mock_cv):
     mock_st.error.assert_not_called()
 
 
-@patch("deepfake_recognition.app_streamlit.cv2.VideoCapture")
-@patch("deepfake_recognition.app_streamlit.st")
+@patch("deepfake_recognition.api.app_streamlit.cv2.VideoCapture")
+@patch("deepfake_recognition.api.app_streamlit.st")
 def test_check_video_duration_too_long(mock_st, mock_cv):
     """Tests that long videos trigger an error and return False."""
     cap = MagicMock()
@@ -108,7 +108,7 @@ def test_check_video_duration_too_long(mock_st, mock_cv):
 #  display_detection_results
 # ------------------------------
 
-@patch("deepfake_recognition.app_streamlit.st")
+@patch("deepfake_recognition.api.app_streamlit.st")
 def test_display_detection_results_deepfake(mock_st):
     """Tests rendering of detection results for a deepfake video."""
     fake_response = MagicMock()
@@ -125,7 +125,7 @@ def test_display_detection_results_deepfake(mock_st):
     mock_st.metric.assert_called_once()
 
 
-@patch("deepfake_recognition.app_streamlit.st")
+@patch("deepfake_recognition.api.app_streamlit.st")
 def test_display_detection_results_authentic(mock_st):
     """Tests rendering of detection results for an authentic video."""
     fake_response = MagicMock()
@@ -142,7 +142,7 @@ def test_display_detection_results_authentic(mock_st):
     mock_st.metric.assert_called_once()
 
 
-@patch("deepfake_recognition.app_streamlit.st")
+@patch("deepfake_recognition.api.app_streamlit.st")
 def test_display_detection_results_bad_json(mock_st):
     """Tests that invalid JSON responses are handled gracefully."""
     fake_response = MagicMock()

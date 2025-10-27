@@ -45,7 +45,7 @@ API_UPLOADS_DIR = PROCESSED_DATA_DIR / 'api_uploads'
 try:
     from tqdm import tqdm
 
-    logger.remove(0)
+    logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=''), colorize=True)
 except ModuleNotFoundError:
     pass

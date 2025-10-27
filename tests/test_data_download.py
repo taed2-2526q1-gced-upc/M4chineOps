@@ -10,7 +10,7 @@ from deepfake_recognition.data_processing import data_download
 @pytest.fixture(scope="module")
 def tmp_output_dir(tmp_path_factory):
     """
-    Fixture that creates a temporary directory to simulate downloads.
+    Fixture: creates a temporary directory to simulate the download destination.
     """
     return tmp_path_factory.mktemp("data_download_test")
 
@@ -18,7 +18,7 @@ def tmp_output_dir(tmp_path_factory):
 @pytest.fixture(scope="function")
 def fake_args(tmp_output_dir):
     """
-    Fixture that simulates command-line arguments.
+    Fixture: simulates command-line arguments for the downloader.
     """
     args = MagicMock()
     args.dataset = "original"
@@ -36,12 +36,12 @@ def fake_args(tmp_output_dir):
 
 
 # ---------------------------------------------------------------------------
-# UNIT TESTS FOR BASIC FUNCTIONS
+# BASIC UNIT TESTS
 # ---------------------------------------------------------------------------
 
 def test_safe_urlretrieve_success(tmp_output_dir):
     """
-    Test: safe_urlretrieve successfully downloads on the first attempt.
+    Test: safe_urlretrieve() completes successfully on the first attempt.
     """
     fake_file = tmp_output_dir / "file.txt"
 
@@ -53,7 +53,7 @@ def test_safe_urlretrieve_success(tmp_output_dir):
 
 def test_safe_urlretrieve_fails_after_retries(tmp_output_dir):
     """
-    Test: safe_urlretrieve raises an exception after exhausting all retries.
+    Test: safe_urlretrieve() raises an exception after all retries fail.
     """
     with patch("urllib.request.urlretrieve", side_effect=Exception("Fail")):
         with pytest.raises(Exception, match="Failed to download"):
@@ -67,20 +67,18 @@ def test_safe_urlretrieve_fails_after_retries(tmp_output_dir):
 
 def test_reporthook_progress_output(capsys):
     """
-    Test: reporthook prints progress correctly.
+    Test: reporthook() prints progress messages correctly.
     """
-    # First call initializes start_time
-    data_download.reporthook(0, 1024, 2048)
+    data_download.reporthook(0, 1024, 2048)  # initialize start time
     time.sleep(0.001)
-    # Second call simulates progress
-    data_download.reporthook(1, 1024, 2048)
+    data_download.reporthook(1, 1024, 2048)  # simulate progress
     out, _ = capsys.readouterr()
     assert "Progress:" in out
 
 
 def test_parse_args_defaults(monkeypatch):
     """
-    Test: parse_args correctly generates URLs for the EU server.
+    Test: parse_args() sets correct defaults for EU server.
     """
     monkeypatch.setattr(sys, "argv", ["data_download.py", "/tmp/output"])
     args = data_download.parse_args()
@@ -92,7 +90,7 @@ def test_parse_args_defaults(monkeypatch):
 
 def test_parse_args_different_servers(monkeypatch):
     """
-    Test: parse_args constructs URLs correctly for different servers.
+    Test: parse_args() constructs correct base URLs for different servers.
     """
     for server, expected_url in [
         ("EU2", "http://kaldir.vc.in.tum.de/faceforensics/"),
@@ -103,7 +101,7 @@ def test_parse_args_different_servers(monkeypatch):
         args = data_download.parse_args()
         assert args.base_url.startswith(expected_url)
 
-    # Invalid server should cause SystemExit (argparse)
+    # Invalid server → argparse should trigger SystemExit
     argv = ["data_download.py", "/tmp/output", "--server", "XX"]
     monkeypatch.setattr(sys, "argv", argv)
     with pytest.raises(SystemExit):
@@ -112,7 +110,7 @@ def test_parse_args_different_servers(monkeypatch):
 
 def test_safe_urlretrieve_retries_on_failure(tmp_output_dir):
     """
-    Test: safe_urlretrieve retries several times before raising an exception.
+    Test: safe_urlretrieve() retries multiple times before failing.
     """
     with patch("urllib.request.urlretrieve", side_effect=Exception("Fail")):
         with pytest.raises(Exception, match="Failed to download"):
@@ -130,7 +128,7 @@ def test_safe_urlretrieve_retries_on_failure(tmp_output_dir):
 
 def test_download_file_creates_file(tmp_output_dir):
     """
-    Test: download_file creates a temporary file and renames it correctly.
+    Test: download_file() creates a temporary file and renames it successfully.
     """
     fake_url = "http://example.com/testfile"
     out_file = tmp_output_dir / "downloaded.txt"
@@ -143,7 +141,7 @@ def test_download_file_creates_file(tmp_output_dir):
 
 def test_download_file_skips_existing_file(tmp_output_dir):
     """
-    Test: download_file does not download if the file already exists.
+    Test: download_file() skips downloading if the file already exists.
     """
     existing_file = tmp_output_dir / "exists.txt"
     existing_file.write_text("already here")
@@ -157,7 +155,7 @@ def test_download_file_skips_existing_file(tmp_output_dir):
 
 def test_download_files_calls_download_file(tmp_output_dir):
     """
-    Test: download_files internally calls download_file for each file.
+    Test: download_files() internally calls download_file() for each listed file.
     """
     files = ["file1.txt", "file2.txt"]
     with patch(
@@ -168,12 +166,12 @@ def test_download_files_calls_download_file(tmp_output_dir):
 
 
 # ---------------------------------------------------------------------------
-# MAIN FUNCTION TESTS (general behavior)
+# MAIN FUNCTION BEHAVIOR
 # ---------------------------------------------------------------------------
 
 def test_main_exits_if_data_exists(fake_args, tmp_output_dir):
     """
-    Test: main() should exit if the data directory already exists.
+    Test: main() should exit early if the dataset already exists.
     """
     with patch("deepfake_recognition.config.GLOBAL_DATA_DIR", tmp_output_dir), \
          patch("os.path.exists", return_value=True), \
@@ -184,7 +182,7 @@ def test_main_exits_if_data_exists(fake_args, tmp_output_dir):
 
 def test_main_downloads_when_no_data(monkeypatch, fake_args, tmp_output_dir):
     """
-    Test: main() continues when the directory does not exist and calls download_files.
+    Test: main() continues when data does not exist and triggers download_files().
     """
     monkeypatch.setattr("builtins.input", lambda _: "y")
 
@@ -199,13 +197,9 @@ def test_main_downloads_when_no_data(monkeypatch, fake_args, tmp_output_dir):
         mock_dl.assert_called()
 
 
-# ---------------------------------------------------------------------------
-# ADDITIONAL TESTS TO INCREASE COVERAGE
-# ---------------------------------------------------------------------------
-
 def test_main_masks_and_models_paths(monkeypatch, fake_args, tmp_output_dir):
     """
-    Test: main() covers branches where type='masks' and type='models'.
+    Test: main() covers the branches for 'masks' and 'models' download types.
     """
     monkeypatch.setattr("builtins.input", lambda _: "y")
     fake_args.dataset = "Deepfakes"
@@ -214,7 +208,7 @@ def test_main_masks_and_models_paths(monkeypatch, fake_args, tmp_output_dir):
     mock_response = MagicMock()
     mock_response.read.return_value = json.dumps([["a", "b"], ["c", "d"]]).encode("utf-8")
 
-    # Test branch for masks (FaceShifter warning skipped)
+    # Case 1: Masks branch (skip FaceShifter warning)
     with patch("deepfake_recognition.config.GLOBAL_DATA_DIR", tmp_output_dir / "no_masks"), \
          patch("os.path.exists", return_value=False), \
          patch("urllib.request.urlopen", return_value=mock_response), \
@@ -222,7 +216,7 @@ def test_main_masks_and_models_paths(monkeypatch, fake_args, tmp_output_dir):
         data_download.main(fake_args)
         mock_dl.assert_called()
 
-    # Test branch for models (Deepfakes only)
+    # Case 2: Models branch (Deepfakes only)
     fake_args.type = "models"
     with patch("deepfake_recognition.config.GLOBAL_DATA_DIR", tmp_output_dir / "no_models"), \
          patch("os.path.exists", return_value=False), \
@@ -234,7 +228,7 @@ def test_main_masks_and_models_paths(monkeypatch, fake_args, tmp_output_dir):
 
 def test_main_models_invalid_dataset(monkeypatch, fake_args, tmp_output_dir):
     """
-    Test: main() aborts if models are requested for a dataset that is not Deepfakes.
+    Test: main() aborts when 'models' are requested for a non-Deepfakes dataset.
     """
     fake_args.dataset = "Face2Face"
     fake_args.type = "models"
@@ -248,12 +242,12 @@ def test_main_models_invalid_dataset(monkeypatch, fake_args, tmp_output_dir):
          patch("urllib.request.urlopen", return_value=mock_response), \
          patch("deepfake_recognition.data_processing.data_download.download_files") as mock_dl:
         data_download.main(fake_args)
-        mock_dl.assert_not_called()  # should abort without downloading
+        mock_dl.assert_not_called()  # abort expected
 
 
 def test_main_masks_faceshifter(monkeypatch, fake_args, tmp_output_dir):
     """
-    Test: main() aborts when trying to download masks for FaceShifter.
+    Test: main() aborts when attempting to download masks for FaceShifter.
     """
     fake_args.dataset = "FaceShifter"
     fake_args.type = "masks"
@@ -267,12 +261,12 @@ def test_main_masks_faceshifter(monkeypatch, fake_args, tmp_output_dir):
          patch("urllib.request.urlopen", return_value=mock_response), \
          patch("deepfake_recognition.data_processing.data_download.download_files") as mock_dl:
         data_download.main(fake_args)
-        mock_dl.assert_not_called()  # should abort
+        mock_dl.assert_not_called()  # abort expected
 
 
 def test_main_original_youtube_videos(monkeypatch, fake_args, tmp_output_dir):
     """
-    Test: main() downloads the special dataset of original YouTube videos.
+    Test: main() downloads the special 'original_youtube_videos' dataset.
     """
     fake_args.dataset = "original_youtube_videos"
     monkeypatch.setattr("builtins.input", lambda _: "y")

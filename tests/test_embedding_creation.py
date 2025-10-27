@@ -1,13 +1,59 @@
-import numpy as np
-import pytest
-from unittest.mock import MagicMock, patch
 import sys
+import pytest
+import numpy as np
+from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
+from typing import cast
 
-sys.modules["cv2"] = MagicMock()
+# --- MOCK de TensorFlow (mínimo y funcional) ---
+import numpy as np
+from types import ModuleType, SimpleNamespace
+
+mock_tf = ModuleType("tensorflow")
+mock_tf.__path__ = []  # permite importar submódulos
+mock_tf.random = SimpleNamespace(set_seed=lambda *a, **kw: None)
+sys.modules["tensorflow"] = mock_tf
+sys.modules["tensorflow.compat"] = ModuleType("tensorflow.compat")
+sys.modules["tensorflow.compat.v2"] = ModuleType("tensorflow.compat.v2")
+
+# --- MOCK de Keras y submódulos ---
+mock_keras = ModuleType("tensorflow.keras")
+mock_keras_applications = ModuleType("tensorflow.keras.applications")
+mock_keras_xception = ModuleType("tensorflow.keras.applications.xception")
+mock_keras_layers = ModuleType("tensorflow.keras.layers")
+mock_keras_models = ModuleType("tensorflow.keras.models")
+
+setattr(mock_keras_applications, "Xception", MagicMock())
+setattr(mock_keras_xception, "preprocess_input", MagicMock())
+
+for layer_name in [
+    "Dense",
+    "Dropout",
+    "GlobalAveragePooling2D",
+    "Input",
+    "Conv2D",
+    "BatchNormalization",
+]:
+    setattr(mock_keras_layers, layer_name, MagicMock())
+
+setattr(mock_keras_models, "Model", MagicMock())
+
+# ✅ Registrar módulos en sys.modules
+sys.modules["tensorflow"] = mock_tf
+sys.modules["tensorflow.keras"] = mock_keras
+sys.modules["tensorflow.keras.applications"] = mock_keras_applications
+sys.modules["tensorflow.keras.applications.xception"] = mock_keras_xception
+sys.modules["tensorflow.keras.layers"] = mock_keras_layers
+sys.modules["tensorflow.keras.models"] = mock_keras_models
+
+# --- MOCK de MTCNN ---
+mock_mtcnn = ModuleType("mtcnn")
+setattr(mock_mtcnn, "MTCNN", MagicMock())
+sys.modules["mtcnn"] = cast(ModuleType, mock_mtcnn)
 
 from deepfake_recognition.data_processing import embedding_creation as emb
-from pathlib import Path
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -123,14 +169,15 @@ def test_main_computes_embeddings(monkeypatch, tmp_path):
     monkeypatch.setattr("os.listdir", lambda p: ["vid.mp4"])
     monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.extract_video_frames_uniform", lambda *a, **kw: [np.zeros((10, 10, 3))])
     monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.preprocess_for_Xception", lambda *a, **kw: np.zeros((1, 10, 10, 3)))
-    monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.build_frame_embeddings", lambda m, x: np.ones((1, 1, 5)))
+    monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.build_frame_embeddings", lambda m, x: np.ones((1, 5)))
+
     monkeypatch.setattr("deepfake_recognition.data_processing.embedding_creation.aggregate_video_embeddings", lambda e, a: np.ones(5))
 
-    # 🚫 Mock de descarga de pesos
-    monkeypatch.setattr(
-        "keras.src.utils.file_utils.get_file",
-        lambda *a, **kw: "/tmp/fake_xception_weights.h5"
-    )
+    # ✅ mock directly in sys.modules before import
+    mock_keras_file_utils = ModuleType("keras.src.utils.file_utils")
+    setattr(mock_keras_file_utils, "get_file", lambda *a, **kw: "/tmp/fake_xception_weights.h5")
+    sys.modules["keras.src.utils.file_utils"] = mock_keras_file_utils
+
 
     # 🚫 Mock de Xception dentro del propio módulo
     monkeypatch.setattr(
