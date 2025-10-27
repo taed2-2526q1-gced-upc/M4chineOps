@@ -13,7 +13,7 @@ logger.info(f'PROJ_ROOT path is: {PROJ_ROOT}')
 # data directories
 GLOBAL_DATA_DIR = PROJ_ROOT / 'data'
 RAW_DATA_DIR = GLOBAL_DATA_DIR / 'raw'
-PROCESSED_DATA_DIR = GLOBAL_DATA_DIR / 'processed'
+API_UPLOADS_DATA_DIR = GLOBAL_DATA_DIR / 'api_uploads'
 
 REAL_DATA_SUBDIR = RAW_DATA_DIR / 'original_sequences/youtube/c40/videos'
 FAKE_DATA_SUBDIR = RAW_DATA_DIR / 'manipulated_sequences/deepfakes/c40/videos'
@@ -25,20 +25,19 @@ EMBEDDING_DIR = GLOBAL_DATA_DIR / 'embeddings'
 USE_CACHED_EMBEDDINGS = False  # if True, use previously extracted embeddings if they exist
 
 # parameters for sampling and modelling
-N_SAMPLES_PER_CLASS = 250
+N_SAMPLES_PER_CLASS = 300
 
 SIZE_FOR_XCEPTION = (299, 299)  # (height, width)
 FRAMES_PER_VIDEO = 12
 EMBEDDING_AGGREGATION = 'mean'  # 'mean' or 'sum'
 
-MODELS_DIR = PROJ_ROOT / 'models'
+MODELS_DIR = PROJ_ROOT / 'deepfake_recognition' / 'modeling'
 MODEL_PATH = MODELS_DIR / 'logreg_model.pkl'
 
 # additional configurations
-DEEPFAKE_THRESHOLD = 0.5  # threshold for classifying a video as deepfake
+DEEPFAKE_THRESHOLD = 0.67  # threshold for classifying a video as deepfake
 
 EMISSIONS_OUTPUT_DIR = PROJ_ROOT / 'emissions'
-API_UPLOADS_DIR = PROCESSED_DATA_DIR / 'api_uploads'
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135
