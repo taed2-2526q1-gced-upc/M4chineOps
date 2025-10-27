@@ -4,6 +4,8 @@ import pandas as pd
 
 try:
     from great_expectations.dataset import PandasDataset
+except Exception:
+    print("[ERROR] pip install great-expectations>=0.18")
 except Exception as e:
     print(f'[ERROR] pip install great-expectations>=0.18: {e}')
     sys.exit(1)
@@ -87,6 +89,12 @@ def exps_meta():
 
 def validate_raw(data_dir, min_per_class):
     d = Path(data_dir) / "raw"
+    if not d.exists(): die(f"No existe {d}.")
+    df = df_raw(d)
+    if df.empty: die("Sin ficheros en data/raw/{real,fake}.")
+    cnt = df["label"].value_counts().to_dict()
+    for lbl in ("real","fake"):
+        if cnt.get(lbl,0) < min_per_class: die(f"Conteo insuficiente '{lbl}': {cnt.get(lbl,0)} < {min_per_class}")
     if not d.exists(): die(f"{d} does not exist.")
     df = df_raw(d)
     if df.empty: die("No files in data/raw/{real,fake}.")
@@ -99,6 +107,9 @@ def validate_raw(data_dir, min_per_class):
 
 def validate_metadata(data_dir):
     d = Path(data_dir) / "metadata"
+    if not d.exists(): die(f"No existe {d}.")
+    df = df_meta(d)
+    if df.empty: die("Sin CSVs en data/metadata/*.csv.")
     if not d.exists(): die(f"{d} does not exist.")
     df = df_meta(d)
     if df.empty: die("No files in data/metadata/*.csv.")
@@ -121,3 +132,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
