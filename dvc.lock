@@ -3,49 +3,124 @@ stages:
   download:
     cmd: python data_processing/data_download.py --server EU2 -c c40 data/raw
     deps:
-    - path: data_processing/data_download.py
+    - path: deepfake_recognition/data_processing/data_download.py
       hash: md5
-      md5: 2bfe649b45c8157a3be4864efe3b5513
-      size: 11003
+      md5: bc19659e98387688a42106a2be054c7e
+      size: 12198
     outs:
     - path: data/raw
       hash: md5
-      md5: 02ab1d5500c40f39b4722054fe10706a.dir
-      size: 4839546726
-      nfiles: 9431
+      md5: 0b50e8abe8cfd810ec52e58a8714e2b5.dir
+      size: 4839640994
+      nfiles: 9446
   preprocess:
-    cmd: python data_processing/data_preprocessing.py
+    cmd: python -m deepfake_recognition.data_processing.data_preprocessing
     deps:
     - path: data/raw
       hash: md5
-      md5: 02ab1d5500c40f39b4722054fe10706a.dir
-      size: 4839546726
-      nfiles: 9431
-    - path: data_processing/data_preprocessing.py
+      md5: 0b50e8abe8cfd810ec52e58a8714e2b5.dir
+      size: 4839640994
+      nfiles: 9446
+    - path: deepfake_recognition/data_processing/data_preprocessing.py
       hash: md5
-      md5: 3a7845bf609d19698be85fbb32910d1d
-      size: 3704
+      md5: b47e93cb08f6bcb2c1dc1376238e9a73
+      size: 3568
     outs:
     - path: data/metadata
       hash: md5
-      md5: fdbb17c8e872c7b258489e714d9a8999.dir
-      size: 487690
+      md5: d5e7355af472d38ccb6677854a4eecf9.dir
+      size: 478251
       nfiles: 8
   split:
-    cmd: python data_processing/data_splitting.py
+    cmd: python -m deepfake_recognition.data_processing.prepare_ffpp_split
     deps:
+    - path: data/raw
+      hash: md5
+      md5: 0b50e8abe8cfd810ec52e58a8714e2b5.dir
+      size: 4839640994
+      nfiles: 9446
+    - path: deepfake_recognition/data_processing/prepare_ffpp_split.py
+      hash: md5
+      md5: b9dc98eba45e9268614755114f51793b
+      size: 1270
+    outs:
+    - path: data/ffpp/train/fake
+      hash: md5
+      md5: 889afde9be5992aa271a5bf5cf50e3e8.dir
+      size: 234353140
+      nfiles: 995
+    - path: data/ffpp/train/real
+      hash: md5
+      md5: a64caeb4bcb16ba47dc3521ce5e6aa53.dir
+      size: 212382929
+      nfiles: 800
+    - path: data/ffpp/val/fake
+      hash: md5
+      md5: 49c89d933d1d25981fbf156ffc861f31.dir
+      size: 138407027
+      nfiles: 588
+    - path: data/ffpp/val/real
+      hash: md5
+      md5: 8ebba5f9ad4e8d48098397b5bfb8f8a6.dir
+      size: 48753108
+      nfiles: 200
+  sample:
+    cmd: python -m data_provisionals.data_sampling
+    deps:
+    - path: data/ffpp
+      hash: md5
+      md5: c95d7b5cf632204f4a1f295c8027723d.dir
+      size: 963609130
+      nfiles: 3788
+    - path: data_provisionals/data_sampling.py
+      hash: md5
+      md5: bb137582d4b6fbcddf702719651de3c4
+      size: 1598
+    outs:
+    - path: data/ffpp_sampled
+      hash: md5
+      md5: d751713988987e9331980363e24189ce.dir
+      size: 0
+      nfiles: 0
+  sampling_and_metadata:
+    cmd: python 
+      deepfake_recognition/data_processing/data_sampling_and_metadata.py
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 0b50e8abe8cfd810ec52e58a8714e2b5.dir
+      size: 4839640994
+      nfiles: 9446
+    - path: deepfake_recognition/data_processing/data_sampling_and_metadata.py
+      hash: md5
+      md5: 44d3e2fa98edae9c3e19a4e4e7d06e46
+      size: 4160
+    outs:
     - path: data/metadata
       hash: md5
-      md5: fdbb17c8e872c7b258489e714d9a8999.dir
-      size: 487690
-      nfiles: 8
-    - path: data_processing/data_splitting.py
+      md5: ae2df0003adf417207513d04de8e3c81.dir
+      size: 14458
+      nfiles: 6
+    - path: data/sampled_videos
       hash: md5
-      md5: f1b977e42d238dd68d7972302de4434f
-      size: 2252
+      md5: db183cef75b7993f01c98fde494b589e.dir
+      size: 133877233
+      nfiles: 498
+  embedding_creation:
+    cmd: python deepfake_recognition/data_processing/embedding_creation.py
+    deps:
+    - path: data/sampled_videos
+      hash: md5
+      md5: db183cef75b7993f01c98fde494b589e.dir
+      size: 133877233
+      nfiles: 498
+    - path: deepfake_recognition/data_processing/embedding_creation.py
+      hash: md5
+      md5: b8964b2884668f6c13d1d141a338a341
+      size: 8067
     outs:
-    - path: data/processed
+    - path: data/embeddings
       hash: md5
-      md5: 1e1ded3182223b153b12ce40d90fc706.dir
-      size: 487510
-      nfiles: 3
+      md5: 078ce465ca5c811f7301dbdd0ef10002.dir
+      size: 11716734
+      nfiles: 6
