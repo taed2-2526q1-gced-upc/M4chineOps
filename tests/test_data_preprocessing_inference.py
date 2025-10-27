@@ -1,12 +1,14 @@
-import sys
-import pytest
-import numpy as np
+"""Unit tests for the preprocessing of data for inference."""
 
+import sys
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 from typing import cast
+import pytest
+import numpy as np
 
-# --- MOCK TensorFlow and its submodules used by the project ---
+
+# MOCK TensorFlow and its submodules used by the project
 mock_tf = ModuleType("tensorflow")
 mock_keras = ModuleType("tensorflow.keras")
 mock_keras_applications = ModuleType("tensorflow.keras.applications")
@@ -38,16 +40,12 @@ sys.modules["tensorflow.keras.applications.xception"] = mock_keras_xception
 sys.modules["tensorflow.keras.layers"] = mock_keras_layers
 sys.modules["tensorflow.keras.models"] = mock_keras_models
 
-# --- MOCK MTCNN ---
 mock_mtcnn = ModuleType("mtcnn")
 setattr(mock_mtcnn, "MTCNN", MagicMock())
 sys.modules["mtcnn"] = cast(ModuleType, mock_mtcnn)
 
-# --- Import the module to test ---
 import deepfake_recognition.data_processing.data_preprocessing_inference as dpi
 
-
-# ---------- FIXTURES ----------
 
 @pytest.fixture
 def mock_detector():
@@ -84,12 +82,24 @@ def patch_cv2_and_cfg(tmp_path, mock_video_capture):
     Globally patch OpenCV functions and the config module for tests.
     Provides temporary directories for RAW, PROCESSED, and API_UPLOADS.
     """
-    with patch("deepfake_recognition.data_processing.data_preprocessing_inference.cv2.VideoCapture", return_value=mock_video_capture), \
-         patch("deepfake_recognition.data_processing.data_preprocessing_inference.cv2.cvtColor", side_effect=lambda f, c: f), \
-         patch("deepfake_recognition.data_processing.data_preprocessing_inference.cv2.imwrite", return_value=True), \
-         patch("deepfake_recognition.data_processing.data_preprocessing_inference.cv2.rectangle", side_effect=lambda *args, **kwargs: None), \
-         patch("os.path.exists", return_value=True), \
-         patch("deepfake_recognition.config") as mock_cfg:
+    with patch(
+        "deepfake_recognition.data_processing.data_preprocessing_inference.cv2.VideoCapture",
+        return_value=mock_video_capture
+    ), patch(
+        "deepfake_recognition.data_processing.data_preprocessing_inference.cv2.cvtColor",
+        side_effect=lambda f, c: f
+    ), patch(
+        "deepfake_recognition.data_processing.data_preprocessing_inference.cv2.imwrite",
+        return_value=True
+    ), patch(
+        "deepfake_recognition.data_processing.data_preprocessing_inference.cv2.rectangle",
+        side_effect=lambda *args, **kwargs: None
+    ), patch(
+        "os.path.exists",
+        return_value=True
+    ), patch(
+        "deepfake_recognition.config"
+    ) as mock_cfg:
 
         # Patch config variables
         mock_cfg.RAW_DATA_DIR = str(tmp_path / "raw")
@@ -99,7 +109,6 @@ def patch_cv2_and_cfg(tmp_path, mock_video_capture):
         yield mock_cfg
 
 
-# ---------- TESTS extract_face_frames ----------
 
 @pytest.mark.parametrize("faces_detected", [True, False])
 def test_extract_face_frames(mock_detector, faces_detected, fake_img_size):
@@ -133,8 +142,6 @@ def test_extract_face_frames(mock_detector, faces_detected, fake_img_size):
         # Empty frame (all zeros) when no faces detected
         assert np.all(frames[0] == 0)
 
-
-# ---------- TESTS extract_and_save_face_paths ----------
 
 def test_extract_and_save_face_paths_success(mock_detector, tmp_path):
     """
@@ -171,8 +178,6 @@ def test_extract_and_save_face_paths_with_exception(mock_detector):
     assert boxed_paths == ["", ""]
     assert face_paths == ["", ""]
 
-
-# ---------- TEST MAIN PLACEHOLDER ----------
 
 def test_main_placeholder_exists():
     """
