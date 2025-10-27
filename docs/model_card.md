@@ -7,20 +7,21 @@ tags:
 - classification
 - deepfake
 - video
-- xception
+- transformer
+- videomae
 datasets:
 - FaceForensics++
 metrics:
 - accuracy
 - f1
 - auc
-base_model: Xception
+base_model: VideoMAE
 
 model-index:
 - name: Deepfake Detection
   results:
   - task:
-      type: image-classification
+      type: video-classification
       name: Video Classification (Real vs Deepfake)
     dataset:
       type: FaceForensics
@@ -42,124 +43,113 @@ model-index:
 
 # Model Card for Deepfake Detection
 
-<!-- Provide a quick summary of what the model is/does. -->
-
 ## Model Details
 
 ### Model Description
 
-<!-- Provide a longer summary of what this model is. -->
+The developed model is based on **VideoMAE**, a Vision Transformer architecture specifically adapted for **spatio-temporal video understanding**. Unlike traditional CNNs such as Xception, VideoMAE processes **video patches** (spatial + temporal), allowing it to jointly capture both visual appearance and motion dynamics.  
 
-Xception (Extreme Inception) is a convolutional neural network architecture introduced by François Chollet in 2017.  
-It is based on the idea of **depthwise separable convolutions**, which factorize a standard convolution into two steps:  
-1. A **depthwise convolution** (applies a single filter per input channel).  
-2. A **pointwise convolution** (1×1 convolution combining the outputs).  
+- **Backbone:** VideoMAE initialized with pre-trained weights from **Kinetics-400**, a large-scale human action dataset.  
+- **Adaptation for binary classification:**  
+  - The original classification head (400 classes) was replaced with a **fully connected layer with 2 outputs** (real vs fake).  
+  - This setup leverages pre-trained spatio-temporal representations while fine-tuning for deepfake detection.  
+- **Input representation:** Videos are divided into groups of **16 consecutive frames**, each resized to **224×224 pixels**, ensuring compatibility with the VideoMAE backbone and enabling temporal learning within short sequences.  
+- **Training setup:**  
+  - Optimizer: Adam  
+  - Loss: Binary Cross-Entropy  
+  - Regularization: dropout and early stopping  
+  - Transfer learning strategy: backbone fine-tuning  
 
-This makes Xception more efficient and powerful than Inception, enabling better feature extraction while keeping the model lightweight.  
-
-In this project, we use a pre-trained **Xception network (ImageNet weights)** as the base, and fine-tune the last layers for **binary classification (real vs fake videos)**.
-
-- **Developed by:** M4chineOps (Maite Blasi, Maria Gestí, Martina Massana, Maria Sans)
-- **Project:** TAED2_M4chineOps – Deepfake Recognition
+- **Developed by:** M4chineOps (Maite Blasi, Maria Gestí, Martina Massana, Maria Sans)  
+- **Project:** TAED2_M4chineOps – Deepfake Recognition  
 - **Language(s):** Not applicable (visual model)  
+
+---
 
 ## Uses
 
-<!-- Address questions around how the model is intended to be used, including the foreseeable users of the model and those affected by the model. -->
-
 ### Direct Use
 
-<!-- This section is for the model use without fine-tuning or plugging into a larger ecosystem/app. -->
-
-- **Research and academic study** of deepfake detection.  
+- **Research and academic study** of video-based deepfake detection.  
 - **Benchmarking** deepfake detection performance on FaceForensics++.  
-- **Educational purposes**, e.g. teaching about computer vision and media forensics.
+- **Educational purposes**, particularly for demonstrating spatio-temporal modeling with Vision Transformers.  
 
 ### Out-of-Scope Use
 
-<!-- This section addresses misuse, malicious use, and uses that the model will not work well for. -->
+This model is **not recommended** for high-stakes or real-world forensic use cases, such as:  
 
-This model should not be used in high-stakes or real-world decision-making contexts such as:
+- **Detection of novel or advanced deepfake methods** not included in FaceForensics++.  
+- **Analysis of low-quality or highly compressed content**, which may degrade accuracy.  
+- **Deployment on uncontrolled video sources** (TikTok, Instagram, messaging platforms) without retraining on relevant datasets.  
 
-- **Detection of novel or advanced deepfake techniques** not included in the training dataset.
-- **Low-quality or highly compressed videos**, where artifacts may mislead the model and increase false positives/negatives.
-- **Generalization to all video platforms** (e.g., TikTok, Instagram, short-form media), since the model was only trained on YouTube-based content.
+---
 
 ## Bias, Risks, and Limitations
 
-<!-- This section is meant to convey both technical and sociotechnical limitations. -->
-
-- May fail on **low-resolution or heavily compressed** videos.  
-- Limited to **FaceForensics++ manipulation techniques** (does not generalize perfectly to unseen methods).  
-- Potential for **false positives** (flagging real videos as fake) and **false negatives** (missing actual deepfakes).  
-- Dataset bias: trained on YouTube videos only, so performance may vary on other domains (TikTok, Instagram, etc.).  
+- Performance is limited to **FaceForensics++ manipulation techniques** and may not generalize well to unseen methods.  
+- **Dataset bias:** trained on YouTube-like videos → may struggle with other platforms.  
+- **False positives:** risk of mislabeling real content as fake.  
+- **False negatives:** risk of missing sophisticated or unseen deepfakes.  
+- Sensitive to **resolution and compression artifacts**.  
 
 ### Recommendations
 
-<!-- This section is meant to convey recommendations with respect to the bias, risk, and technical limitations. -->
+- Use only in **controlled experimental setups**, not as a forensic decision-making tool.  
+- Retrain periodically with **newer datasets** reflecting emerging deepfake generation techniques.  
+- Combine with **multimodal approaches** (audio, metadata, physiological cues) for higher reliability.  
 
-- Complement with **multiple detection methods** (audio, metadata, multimodal).  
-- Regularly retrain on updated datasets including **newer deepfake generation techniques**.  
-- Use only in **controlled, experimental environments**.  
+---
 
 ## Training Details
 
 ### Training Data
 
-<!-- This should link to a Dataset Card, perhaps with a short stub of information on what the training data is all about as well as documentation related to data pre-processing or additional filtering. -->
+Dataset: **FaceForensics++**  
+- Contains original and manipulated YouTube-based videos.  
+- Training/validation/testing splits applied.  
 
-For more information look at: https://github.com/taed2-2526q1-gced-upc/M4chineOps/blob/main/docs/dataset_card.md (Dataset card)
+For more details: [Dataset Card](https://github.com/taed2-2526q1-gced-upc/M4chineOps/blob/main/docs/dataset_card.md)  
 
 #### Preprocessing
 
-We implemented a custom preprocessing pipeline in Python to prepare the FaceForensics++ dataset before training.  
-
-Steps:  
-1. **Folder reorganization**: structured DVC-tracked files for original and manipulated sequences.  
-2. **Metadata extraction**: used OpenCV to iterate through `.mp4` files and extract frame count, width, height. Organized metadata in dataframes (with fields filepath, label (0=real, 1=fake), frames, width, height) to be able to split data.
+- Videos split into **16-frame clips**.  
+- Frames resized to **224×224 pixels**.  
+- Organized into DVC-tracked folders with metadata (filepath, label, frames, resolution).  
 
 ### Training Procedure
 
-<!-- This relates heavily to the Technical Specifications. Content here should link to that section when it is relevant to the training procedure. -->
-
-Fine-tuning setup:  
-- **Base model:** Xception with ImageNet weights.  
-- **Frozen layers:** convolutional backbone initially frozen, then partially unfrozen for further training.  
-- **Classifier head:** replaced with a dense layer + sigmoid for binary classification.  
+- **Base model:** VideoMAE (pretrained on Kinetics-400).  
+- **Classifier head:** replaced with 2-class dense layer.  
+- **Frozen layers:** initial fine-tuning with frozen backbone, then gradual unfreezing.  
 - **Optimizer:** Adam.  
 - **Loss:** Binary Cross-Entropy.  
-- **Regularization:** dropout and early stopping to reduce overfitting.  
+- **Regularization:** dropout + early stopping.  
 - **Metrics:** Accuracy, F1-score, AUC.  
-
-This transfer learning approach allowed us to leverage pre-trained features and adapt them efficiently to the FaceForensics++ dataset.
 
 #### Training Hyperparameters
 
-- Batch size: 32/64
-- Epochs: 20–30
-- Learning rate: 1e-4 (with decay)
+- Batch size: 32/64  
+- Epochs: 20–30  
+- Learning rate: 1e-4 with decay  
+
+---
 
 ## Evaluation
 
-<!-- This section describes the evaluation protocols and provides the results. -->
+### Testing Data
 
-### Testing Data, Factors & Metrics
+Dataset: **FaceForensics++ (test split)**  
+More info: [Dataset Card](https://github.com/taed2-2526q1-gced-upc/M4chineOps/blob/main/docs/dataset_card.md)  
 
-#### Testing Data
+### Factors
 
-For more information look at: https://github.com/taed2-2526q1-gced-upc/M4chineOps/blob/main/docs/dataset_card.md (Dataset card)
+- Video compression level.  
+- Manipulation method (specific FaceForensics++ manipulation types).  
+- Frame quality and resolution.  
 
-#### Factors
+### Metrics
 
-<!-- These are the things the evaluation is disaggregating by, e.g., subpopulations or domains. -->
-
-{{ testing_factors | default("[More Information Needed]", true)}}
-
-#### Metrics
-
-<!-- These are the evaluation metrics being used, ideally with a description of why. -->
-
-The model was evaluated using three main metrics: **Accuracy**, **F1-score**, and **AUC**. Each provides complementary information about performance, especially considering the challenges of class imbalance and the risks of false positives/negatives in deepfake detection.  
+Three main metrics are used to evaluate the model: **Accuracy**, **F1-score**, and **AUC**. Each provides complementary information about performance, especially considering the challenges of class imbalance and the risks of false positives/negatives in deepfake detection.  
 
 - **Accuracy**  
   Measures the overall proportion of correctly classified samples (both real and fake).  
@@ -182,20 +172,22 @@ The model was evaluated using three main metrics: **Accuracy**, **F1-score**, an
   Evaluates the trade-off between **True Positive Rate (TPR)** and **False Positive Rate (FPR)** across different thresholds.  
   - AUC close to **1.0** means the model separates well between real and fake videos.  
   - AUC around **0.5** means performance is no better than random guessing.  
-  This is a robust metric in binary classification tasks, particularly when the decision threshold may vary depending on application.  
+  This is a robust metric in binary classification tasks, particularly when the decision threshold may vary depending on application. 
 
 ### Results
 
-{{ results | default("[More Information Needed]", true)}}
+[More Information Needed]
 
 #### Summary
 
-{{ results_summary | default("", true) }}
+The VideoMAE-based model shows strong potential for deepfake recognition by leveraging spatio-temporal features, but requires careful retraining and multimodal complementarity for practical deployment.  
+
+---
 
 ## Model Card Authors
 
-M4chineOps Team: Maite Blasi, Maria Gestí, Martina Massana, Maria Sans
+M4chineOps Team: Maite Blasi, Maria Gestí, Martina Massana, Maria Sans  
 
 ## Model Card Contact
 
-m4chineops@gmail.com
+m4chineops@gmail.com  

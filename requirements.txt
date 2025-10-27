@@ -5,12 +5,20 @@ python-dotenv
 ruff
 tqdm
 typer
-opencv-python
+opencv-python-headless
 pandas>=2.3.2
 numpy>=2.3.3
 pyyaml
 scipy>=1.16.2
 scikit-learn>=1.7.2
+mlflow
 mtcnn
 tensorflow>=2.14.0
--e .
+tqdm
+pytest
+pyyaml
+codecarbon
+great-expectations>=0.18
+FastAPI
+python-multipart
+uvloop>=0.14.0

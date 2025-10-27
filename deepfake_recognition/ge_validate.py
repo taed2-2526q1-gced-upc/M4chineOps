@@ -6,6 +6,8 @@ try:
     from great_expectations.dataset import PandasDataset
 except Exception:
     print("[ERROR] pip install great-expectations>=0.18")
+except Exception as e:
+    print(f'[ERROR] pip install great-expectations>=0.18: {e}')
     sys.exit(1)
 
 def jdump(o, p):
@@ -93,6 +95,12 @@ def validate_raw(data_dir, min_per_class):
     cnt = df["label"].value_counts().to_dict()
     for lbl in ("real","fake"):
         if cnt.get(lbl,0) < min_per_class: die(f"Conteo insuficiente '{lbl}': {cnt.get(lbl,0)} < {min_per_class}")
+    if not d.exists(): die(f"{d} does not exist.")
+    df = df_raw(d)
+    if df.empty: die("No files in data/raw/{real,fake}.")
+    cnt = df["label"].value_counts().to_dict()
+    for lbl in ("real","fake"):
+        if cnt.get(lbl,0) < min_per_class: die(f"Not enough videos sampled per class '{lbl}': {cnt.get(lbl,0)} < {min_per_class}")
     res = run_ge(df, exps_raw(), "raw_result", Path(data_dir)/"validation")
     if not res.get("success", False): die("RAW validation FAILED (data/validation/raw_result.json)")
     print("[GE] RAW validation PASSED")
@@ -102,6 +110,9 @@ def validate_metadata(data_dir):
     if not d.exists(): die(f"No existe {d}.")
     df = df_meta(d)
     if df.empty: die("Sin CSVs en data/metadata/*.csv.")
+    if not d.exists(): die(f"{d} does not exist.")
+    df = df_meta(d)
+    if df.empty: die("No files in data/metadata/*.csv.")
     res = run_ge(df, exps_meta(), "metadata_result", Path(data_dir)/"validation")
     if not res.get("success", False): die("Metadata validation FAILED (data/validation/metadata_result.json)")
     if (df.groupby("filename")["split"].nunique() > 1).any(): die("Leakage: un filename aparece en >1 split.")
