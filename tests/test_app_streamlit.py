@@ -1,15 +1,11 @@
+"""Unit tests for the Deepfake Recognition Streamlit application."""
+
 import io
-import pytest
-import numpy as np
 from unittest.mock import MagicMock, patch
 import cv2
 
 import deepfake_recognition.api.app_streamlit as app
 
-
-# ------------------------------
-#  check_api_health
-# ------------------------------
 
 @patch("deepfake_recognition.api.app_streamlit.requests.get")
 @patch("deepfake_recognition.api.app_streamlit.st")
@@ -40,10 +36,6 @@ def test_check_api_health_failure(mock_st, mock_get):
     mock_st.stop.assert_called_once()
 
 
-# ------------------------------
-#  call_api_endpoint
-# ------------------------------
-
 @patch("deepfake_recognition.api.app_streamlit.requests.post")
 @patch("deepfake_recognition.api.app_streamlit.st.spinner")
 def test_call_api_endpoint_success(mock_spinner, mock_post):
@@ -72,9 +64,6 @@ def test_call_api_endpoint_request_exception(mock_st, mock_post):
     mock_st.error.assert_called_once()
 
 
-# ------------------------------
-#  check_video_duration
-# ------------------------------
 
 @patch("deepfake_recognition.api.app_streamlit.cv2.VideoCapture")
 @patch("deepfake_recognition.api.app_streamlit.st")
@@ -96,7 +85,7 @@ def test_check_video_duration_under_limit(mock_st, mock_cv):
 def test_check_video_duration_too_long(mock_st, mock_cv):
     """Test that overly long videos trigger an error and return False."""
     cap = MagicMock()
-    cap.get.side_effect = lambda x: {cv2.CAP_PROP_FPS: 30, cv2.CAP_PROP_FRAME_COUNT: 90000}.get(x, 0)
+    cap.get.side_effect = lambda x:{cv2.CAP_PROP_FPS:30, cv2.CAP_PROP_FRAME_COUNT: 90000}.get(x, 0)
     mock_cv.return_value = cap
 
     fake_file = MagicMock()
@@ -106,10 +95,6 @@ def test_check_video_duration_too_long(mock_st, mock_cv):
     assert result is False
     mock_st.error.assert_called_once()
 
-
-# ------------------------------
-#  display_detection_results
-# ------------------------------
 
 @patch("deepfake_recognition.api.app_streamlit.st")
 def test_display_detection_results_deepfake(mock_st):
@@ -155,10 +140,6 @@ def test_display_detection_results_bad_json(mock_st):
     mock_st.error.assert_called_with("Could not parse JSON response from detection endpoint.")
 
 
-# ------------------------------
-#  display_video_and_faces
-# ------------------------------
-
 @patch("deepfake_recognition.api.app_streamlit.st")
 @patch("deepfake_recognition.api.app_streamlit.call_api_endpoint")
 def test_display_video_and_faces_success(mock_call, mock_st):
@@ -190,10 +171,6 @@ def test_display_video_and_faces_error(mock_call, mock_st):
     mock_st.error.assert_called_once()
 
 
-# ------------------------------
-#  download_boxes_and_faces
-# ------------------------------
-
 @patch("deepfake_recognition.api.app_streamlit.st")
 @patch("deepfake_recognition.api.app_streamlit.call_api_endpoint")
 def test_download_boxes_and_faces_success(mock_call, mock_st):
@@ -224,10 +201,6 @@ def test_download_boxes_and_faces_error(mock_call, mock_st):
     app.download_boxes_and_faces(fake_file, buffer)
     mock_st.error.assert_called_once()
 
-
-# ------------------------------
-#  main()
-# ------------------------------
 
 @patch("deepfake_recognition.api.app_streamlit.st")
 @patch("deepfake_recognition.api.app_streamlit.check_api_health")

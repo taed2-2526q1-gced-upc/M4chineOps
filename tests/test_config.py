@@ -1,3 +1,5 @@
+"""Tests for configuration file."""
+
 from pathlib import Path
 import sys
 import pytest
@@ -8,7 +10,7 @@ def reload_config_module():
     """Reloads config.py fresh for each test to ensure no cached values."""
     if "deepfake_recognition.config" in sys.modules:
         del sys.modules["deepfake_recognition.config"]
-    import deepfake_recognition.config as config
+    from deepfake_recognition import config
     return config
 
 
@@ -55,7 +57,7 @@ def test_logger_initialization_does_not_fail(reload_config_module):
     assert callable(cfg.logger.info)
 
 
-def test_tqdm_integration_graceful(monkeypatch):
+def test_tqdm_integration_graceful():
     """Simulates a missing tqdm module and verifies config still imports cleanly."""
     sys_modules_backup = sys.modules.copy()
     sys.modules["tqdm"] = None
@@ -63,7 +65,7 @@ def test_tqdm_integration_graceful(monkeypatch):
     try:
         if "deepfake_recognition.config" in sys.modules:
             del sys.modules["deepfake_recognition.config"]
-        import deepfake_recognition.config as config
+        from deepfake_recognition import config
         assert True  # should import successfully
     finally:
         sys.modules = sys_modules_backup

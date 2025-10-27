@@ -1,16 +1,16 @@
+"""Unit tests for the Deepfake Recognition FastAPI application."""
+
 import io
 import sys
-import pytest
-import numpy as np
-
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 from typing import cast
+import pytest
+import numpy as np
+
 from fastapi.testclient import TestClient
 
-# ---------------------------------------------------------------------
-#  MOCK TensorFlow and MTCNN dependencies to safely import the API
-# ---------------------------------------------------------------------
+
 mock_tf = ModuleType("tensorflow")
 mock_keras = ModuleType("tensorflow.keras")
 mock_keras_applications = ModuleType("tensorflow.keras.applications")
@@ -44,15 +44,9 @@ mock_mtcnn = ModuleType("mtcnn")
 setattr(mock_mtcnn, "MTCNN", MagicMock())
 sys.modules["mtcnn"] = cast(ModuleType, mock_mtcnn)
 
-# ---------------------------------------------------------------------
-#  Import API after mocks
-# ---------------------------------------------------------------------
-import deepfake_recognition.api.api as api
+from deepfake_recognition.api import api
 
 
-# ---------------------------------------------------------------------
-#  Fixtures
-# ---------------------------------------------------------------------
 @pytest.fixture
 def client():
     """Creates a reusable FastAPI test client."""
@@ -67,9 +61,6 @@ def mock_model():
     return model
 
 
-# ---------------------------------------------------------------------
-#  Basic endpoint tests
-# ---------------------------------------------------------------------
 def test_read_root(client):
     """Root endpoint should return a welcome message."""
     response = client.get("/")
@@ -100,9 +91,6 @@ def test_health_check_error_state(monkeypatch, client):
     assert data["model_loaded"] is False
 
 
-# ---------------------------------------------------------------------
-#  Deepfake detection tests
-# ---------------------------------------------------------------------
 @patch("deepfake_recognition.api.api.model", new_callable=lambda: MagicMock())
 @patch("deepfake_recognition.api.api.extract_face_frames")
 @patch("deepfake_recognition.api.api.preprocess_for_Xception")
@@ -153,9 +141,6 @@ def test_detect_deepfake_model_not_loaded(client):
     assert "Model not loaded" in response.text
 
 
-# ---------------------------------------------------------------------
-#  Face extraction tests
-# ---------------------------------------------------------------------
 @patch("deepfake_recognition.api.api.extract_and_save_face_paths")
 @patch("deepfake_recognition.api.api.cv2.VideoCapture")
 def test_extract_faces_from_video_api(mock_cap, mock_extract, client, tmp_path):
@@ -209,3 +194,52 @@ def test_display_faces_from_video_api_failure(client):
 
     assert response.status_code == 500
     assert "Error extracting faces" in response.text
+
+
+@patch("deepfake_recognition.api.api.extract_face_frames", side_effect=RuntimeError("boom"))
+@patch("deepfake_recognition.api.api.model", new_callable=lambda: MagicMock())
+def test_detect_deepfake_internal_error(mock_model, mock_extract, client):
+    """Covers internal exception raised inside pipeline."""
+    files = {"video": ("test.mp4", io.BytesIO(b"abc"), "video/mp4")}
+    with patch("deepfake_recognition.api.api.cv2.VideoCapture") as mock_cap:
+        cap = MagicMock()
+        cap.isOpened.return_value = True
+        mock_cap.return_value = cap
+        resp = client.post("/detect_deepfake", files=files)
+    assert resp.status_code == 500
+    assert "Inference error" in resp.text or "Error processing video" in resp.text
+
+
+@patch("deepfake_recognition.api.api.extract_and_save_face_paths", side_effect=Exception("fail"))
+@patch("deepfake_recognition.api.api.cv2.VideoCapture")
+def test_download_faces_from_video_internal_error(mock_cap, mock_extract, client):
+    """Ensure internal errors in /download_faces_from_video produce 500."""
+    cap = MagicMock()
+    cap.isOpened.return_value = True
+    mock_cap.return_value = cap
+    files = {"video": ("vid.mp4", io.BytesIO(b"data"), "video/mp4")}
+    resp = client.post("/download_faces_from_video", files=files)
+    assert resp.status_code == 500
+    assert "Error extracting faces" in resp.text
+
+
+@patch("deepfake_recognition.api.api.cv2.VideoCapture")
+@patch("deepfake_recognition.api.api.extract_and_save_face_paths")
+def test_display_faces_from_video_success(mock_extract, mock_cap, client, tmp_path):
+    """Covers successful case for /display_faces_from_video."""
+    cap = MagicMock()
+    cap.isOpened.return_value = True
+    mock_cap.return_value = cap
+
+    # Create dummy face images to simulate success
+    img1 = tmp_path / "f1.jpg"
+    img2 = tmp_path / "f2.jpg"
+    img1.write_text("data")
+    img2.write_text("data")
+    mock_extract.return_value = ([str(img1), str(img2)], [str(img1), str(img2)])
+
+    files = {"video": ("ok.mp4", io.BytesIO(b"v"), "video/mp4")}
+    resp = client.post("/display_faces_from_video", files=files)
+    assert resp.status_code == 200
+    assert "<html" in resp.text.lower()
+    assert "img" in resp.text.lower()

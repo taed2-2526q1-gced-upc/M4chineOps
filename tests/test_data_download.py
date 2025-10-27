@@ -1,8 +1,10 @@
+"""Unit tests for the Data Download."""
+
 import json
-import pytest
 import sys
 import time
 from unittest.mock import patch, MagicMock
+import pytest
 
 from deepfake_recognition.data_processing import data_download
 
@@ -161,7 +163,8 @@ def test_download_files_calls_download_file(tmp_output_dir):
     with patch(
         "deepfake_recognition.data_processing.data_download.download_file"
     ) as mock_dl:
-        data_download.download_files(files, "http://example.com/", str(tmp_output_dir), report_progress=False)
+        data_download.download_files(files, "http://example.com/", \
+        str(tmp_output_dir), report_progress=False)
         assert mock_dl.call_count == len(files)
 
 

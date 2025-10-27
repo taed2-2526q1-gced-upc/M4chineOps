@@ -1,9 +1,10 @@
-import pandas as pd
-import pytest
+"""Unit tests for data sampling and metadata creation"""
+
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 import sys
-from unittest.mock import MagicMock
+import pandas as pd
+import pytest
 
 # Preemptively mock cv2 before importing the module to avoid OpenCV dependency
 sys.modules["cv2"] = MagicMock()
@@ -50,7 +51,8 @@ def test_sample_split_creates_expected_structure(tmp_dirs, monkeypatch):
     # Patch both cv2.VideoCapture and shutil.copy
     with patch("cv2.VideoCapture", return_value=mock_cap), \
          patch("shutil.copy", side_effect=lambda src, dst: Path(dst).write_text("copied")):
-        ds.sample_split(str(src_real), str(src_fake), str(dst_dir), str(metadata_dir), n_per_class=3)
+        ds.sample_split(str(src_real), str(src_fake), \
+        str(dst_dir), str(metadata_dir), n_per_class=3)
 
     # Validate the output folder structure
     for split in ["train", "val", "test"]:
@@ -82,8 +84,11 @@ def test_main_creates_metadata_dir_and_calls_sample_split(tmp_path):
     cfg_mock.METADATA_DIR = meta_dir
     cfg_mock.N_SAMPLES_PER_CLASS = 2
 
-    with patch("deepfake_recognition.data_processing.data_sampling_and_metadata.cfg", cfg_mock), \
-         patch("deepfake_recognition.data_processing.data_sampling_and_metadata.sample_split") as mock_split:
+    with patch(
+        "deepfake_recognition.data_processing.data_sampling_and_metadata.cfg", cfg_mock
+    ), patch(
+        "deepfake_recognition.data_processing.data_sampling_and_metadata.sample_split"
+    ) as mock_split:
         ds.main()
         mock_split.assert_called_once()
 
