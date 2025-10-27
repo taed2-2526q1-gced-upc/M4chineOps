@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 import io, os, cv2, traceback, joblib
 import zipfile, tempfile
 import numpy as np
+import base64
 
 from mtcnn import MTCNN
 
@@ -88,13 +89,14 @@ async def detect_deepfake(video: UploadFile = File(...)):
             status_code=400,
             detail='Invalid file format. Only .mp4 videos are supported.',
         )
-
+    
     try:
         # save video temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
             tmp.write(await video.read())
+            tmp.flush()
             video_path = tmp.name
-
+        
         # check if video can be opened
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -119,6 +121,8 @@ async def detect_deepfake(video: UploadFile = File(...)):
         x = preprocess_for_Xception(frames, IMG_SIZE)
 
         X = build_frame_embeddings(emb_model, x) 
+        extra_col = np.zeros((X.shape[0], 1))  # placeholder for potential extra features
+        X = np.hstack((X, extra_col)) 
 
         # predict per frame
         if hasattr(model, 'predict_proba'):
@@ -150,20 +154,16 @@ async def detect_deepfake(video: UploadFile = File(...)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f'Inference error: {e}')
 
-    finally:
-        if 'video_path' in locals() and os.path.exists(video_path):
-            os.remove(video_path)
 
-
-@app.post('/extract_faces_from_video', response_class=HTMLResponse)
-async def extract_faces_from_video_api(video: UploadFile = File(...)):
-    """Shows faces extracted directly from HTML upload."""
+@app.post('/display_faces_from_video', response_class=HTMLResponse)
+async def display_faces_from_video_api(video: UploadFile = File(...)):
+    """Shows faces and bouding boxes extracted directly as an HTML object."""
 
     with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
         tmp.write(await video.read())
+        tmp.flush()
         video_path = tmp.name
         video_name = os.path.splitext(os.path.basename(video.filename))[0]
-        video_temp = os.path.splitext(os.path.basename(video_path))[0]
 
     try:
         cap = cv2.VideoCapture(video_path)
@@ -171,32 +171,116 @@ async def extract_faces_from_video_api(video: UploadFile = File(...)):
             raise ValueError('The video could not be opened.')
         cap.release()
 
-        API_UPLOADS_DIR = str(cfg.API_UPLOADS_DIR)
+        API_UPLOADS_DIR = str(cfg.API_UPLOADS_DATA_DIR)
         if not os.path.exists(API_UPLOADS_DIR):
             os.makedirs(API_UPLOADS_DIR, exist_ok=True)
 
         boxed_paths, face_paths = extract_and_save_face_paths(
             detector=detector,
             filepath=video_path,
+            filename=video_name,
+            k=FRAMES_PER_VIDEO,
+        )
+
+        # converting images to Base64 to display them in HTML
+        html_box_imgs = ''
+        for p in boxed_paths:
+            if os.path.exists(p):
+                with open(p, 'rb') as f:
+                    encoded = base64.b64encode(f.read()).decode('utf-8')
+                html_box_imgs += f'<img src="data:image/jpeg;base64,{encoded}" style="width:200px; margin:5px; border-radius:8px;">'
+        
+        html_face_imgs = ''
+        for p in face_paths:
+            if os.path.exists(p):
+                with open(p, 'rb') as f:
+                    encoded = base64.b64encode(f.read()).decode('utf-8')
+                html_face_imgs += f'<img src="data:image/jpeg;base64,{encoded}" style="width:200px; margin:5px; border-radius:8px;">'
+
+        html_content = f"""
+        <html>
+        <head>
+            <title>Faces extracted from {video.filename}</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    background-color: #f6f6f6;
+                }}
+                h1 {{
+                    color: #333;
+                }}
+                .container {{
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    background-color: white;
+                    padding: 10px;
+                    border-radius: 12px;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                    margin-bottom: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>🧑‍🦰 Extracted Faces From Video: {video.filename}</h1>
+            <p>Total: {len(face_paths)} imatges</p>
+            <div class="container">{html_face_imgs}</div>
+
+            <h1>🟩 Extracted Bounding Boxes Video: {video.filename}</h1>
+            <p>Total: {len(boxed_paths)} imatges</p>
+            <div class="container">{html_box_imgs}</div>
+        </body>
+        </html>
+        """
+
+        return HTMLResponse(content=html_content, status_code=200)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Error extracting faces: {e}')
+
+
+@app.post('/download_faces_from_video', response_class=HTMLResponse)
+async def download_faces_from_video_api(video: UploadFile = File(...)):
+    """Retrieves faces and bounding boxes into a downloadable .zip file."""
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
+        tmp.write(await video.read())
+        tmp.flush()
+        video_path = tmp.name
+        video_name = os.path.splitext(os.path.basename(video.filename))[0]
+
+    try:
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise ValueError('The video could not be opened.')
+        cap.release()
+
+        API_UPLOADS_DIR = str(cfg.API_UPLOADS_DATA_DIR)
+        if not os.path.exists(API_UPLOADS_DIR):
+            os.makedirs(API_UPLOADS_DIR, exist_ok=True)
+
+        boxed_paths, face_paths = extract_and_save_face_paths(
+            detector=detector,
+            filepath=video_path,
+            filename=video_name,
             k=FRAMES_PER_VIDEO,
         )
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w') as zipf:
             for p in boxed_paths + face_paths: 
-                zipf.write(p, os.path.basename(p))
+                with open(p, 'rb') as f:
+                    zipf.writestr(os.path.basename(p), f.read())
+                os.remove(p)
         zip_buffer.seek(0)
 
         # return as downloadable file
         return StreamingResponse(
             zip_buffer,
             media_type='application/x-zip-compressed',
-            headers={'Content-Disposition': f'attachment; filename={video_name}_{video_temp}_boxes_and_faces.zip'}
+            headers={'Content-Disposition': f'attachment; filename={video_name}_boxes_and_faces.zip'}
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Error extracting faces: {e}')
-
-    finally:
-        if os.path.exists(video_path):
-            os.remove(video_path)
