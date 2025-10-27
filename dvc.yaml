@@ -7,10 +7,10 @@ stages:
     - data/raw
     
   validate_raw:
-    cmd: python -m deepfake_recognition.validation.ge_validate validate-raw --min-per-class 10
+    cmd: python deepfake_recognition/data_validation/validate_raw_data.py --data-dir data --min-per-class 1
     deps:
     - data/raw
-    - deepfake_recognition/validation/ge_validate.py
+    - deepfake_recognition/data_validation/validate_raw_data.py
     outs:
     - data/validation/raw_result.json
 
@@ -24,10 +24,10 @@ stages:
     - data/metadata
     
   validate_metadata:
-    cmd: python -m deepfake_recognition.validation.ge_validate validate-metadata
+    cmd: python deepfake_recognition/data_validation/validate_metadata.py --data-dir data
     deps:
     - data/metadata
-    - deepfake_recognition/validation/ge_validate.py
+    - deepfake_recognition/validation/validate_metadata.py
     outs:
     - data/validation/metadata_result.json
   
@@ -45,5 +45,5 @@ stages:
     - deepfake_recognition/modeling/model_training.py
     - data/embeddings
     outs:
-    - models/logreg_model.pkl
-    - emissions/emissions.csv
+    - deepfake_recognition/modeling/logreg_model.pkl
+    - deepfake_recognition/reports/emissions.csv

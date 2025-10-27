@@ -98,7 +98,7 @@ if not res.get("success", False):
 3) E741 — nombres ambiguos
 ----------------------------------------------------------------
 
-Archivo: deepfake_recognition/matadata.py
+Archivo: deepfake_recognition/validate_metadata.py
 
 ANTES
 -----
@@ -134,7 +134,7 @@ dataset_mask_url = args.base_url + "{}/{}/{}/".format(dataset_path, "masks", c_t
 5) Serialización GE — ExpectationSuiteValidationResult
 ----------------------------------------------------------------
 
-Archivo: deepfake_recognition/raw_data.py (análogo en matadata.py)
+Archivo: deepfake_recognition/validate_raw_data.py (análogo en validate_metadata.py)
 
 ANTES
 -----
@@ -198,8 +198,8 @@ pd.DataFrame([
 ]).to_csv("data/metadata/metadata.csv", index=False)
 print("metadata.csv creado")
 PYX
-python -m deepfake_recognition.raw_data --data-dir data --min-per-class 1
-python -m deepfake_recognition.matadata --data-dir data
+python deepfake_recognition/data_validation/validate_raw_data.py --data-dir data --min-per-class 1
+python deepfake_recognition/data_validation/validate_metadata.py --data-dir data
 
 Resultados esperados
 --------------------

@@ -37,7 +37,7 @@ MODEL_PATH = MODELS_DIR / 'logreg_model.pkl'
 # additional configurations
 DEEPFAKE_THRESHOLD = 0.67  # threshold for classifying a video as deepfake
 
-EMISSIONS_OUTPUT_DIR = PROJ_ROOT / 'emissions'
+EMISSIONS_OUTPUT_DIR = PROJ_ROOT / 'reports' / 'emissions'
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135
