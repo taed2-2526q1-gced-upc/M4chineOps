@@ -10,6 +10,10 @@
 * martina.massana@estudiantat.upc.edu
 * maria.sans.bosch@estudiantat.upc.edu
 
+### API Server and User Interface
+* **Swagger UI (API deployed with `nohup`):** http://nattech.fib.upc.edu:40410/docs 
+* **Streamlit:** https://deepfake-recognition-taed2.streamlit.app/
+
 Deepfake Video Detection System
 
 ## Project Organization
